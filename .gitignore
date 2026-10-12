@@ -46,3 +46,4 @@ next-env.d.ts
 _vibhor/
 .cursor/
 prisma/*.db*
+.env.local
