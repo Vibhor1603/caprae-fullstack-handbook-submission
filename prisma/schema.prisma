@@ -2,12 +2,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Local: provider = "sqlite", DATABASE_URL="file:./dev.db"
-// Prod (Neon/Supabase/Vercel Postgres): provider = "postgresql",
-// DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+// Supabase Postgres (local + Vercel).
+// DATABASE_URL = pooler (6543) for the app
+// DIRECT_URL   = direct (5432) for prisma db push / migrate
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model ImportRun {
@@ -20,59 +21,59 @@ model ImportRun {
 }
 
 model Lead {
-  id          String    @id @default(cuid())
-  runId       String
-  run         ImportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  company     String
-  score       Int
-  tier        String
-  junk        Boolean
-  duplicateOf String?
-  reasons     String // JSON array
-  raw         String // JSON of original row
-  whyNow      String?
-  tags        String  @default("[]") // JSON string[]
-  enrichment  String? // JSON EnrichmentSnapshot
+  id           String    @id @default(cuid())
+  runId        String
+  run          ImportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  company      String
+  score        Int
+  tier         String
+  junk         Boolean
+  duplicateOf  String?
+  reasons      String // JSON array
+  raw          String // JSON of original row
+  whyNow       String?
+  tags         String    @default("[]") // JSON string[]
+  enrichment   String? // JSON EnrichmentSnapshot
   lastVerified DateTime?
 }
 
 model EnrichmentCache {
-  id          String   @id @default(cuid())
-  domain      String   @unique
-  payload     String // JSON
-  robotsAllowed Boolean @default(true)
-  fetchedAt   DateTime @default(now())
-  expiresAt   DateTime
+  id            String   @id @default(cuid())
+  domain        String   @unique
+  payload       String // JSON
+  robotsAllowed Boolean  @default(true)
+  fetchedAt     DateTime @default(now())
+  expiresAt     DateTime
 }
 
 model Workflow {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   name      String
-  enabled   Boolean  @default(true)
+  enabled   Boolean       @default(true)
   graph     String // JSON { nodes, edges }
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   runs      WorkflowRun[]
 }
 
 model WorkflowRun {
-  id         String   @id @default(cuid())
-  workflowId String
-  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  status     String // pending | done | failed
-  trigger    String
-  leadId     String?
-  leadLabel  String?
+  id          String    @id @default(cuid())
+  workflowId  String
+  workflow    Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  status      String // pending | done | failed
+  trigger     String
+  leadId      String?
+  leadLabel   String?
   nodeResults String // JSON array
-  error      String?
-  createdAt  DateTime @default(now())
-  finishedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
 }
 
 model ReportEvent {
   id        String   @id @default(cuid())
   kind      String // a_tier | workflow_run | crm_push | enrich
   summary   String
-  payload   String @default("{}")
+  payload   String   @default("{}")
   createdAt DateTime @default(now())
 }

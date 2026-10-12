@@ -41,18 +41,22 @@ npm run build && PORT=3001 npm run start
 | Area | Choice |
 | --- | --- |
 | App | Next.js 15, TypeScript, Tailwind |
-| Database | Prisma — SQLite locally, Postgres in production |
-| Caching | Enrichment results cached ~7 days in the DB (no Redis) |
-| Hosting | Intended for Vercel + managed Postgres (e.g. Neon) |
+| Database | Prisma + **Supabase Postgres** |
+| Caching | Enrichment results cached ~7 days in Postgres (no Redis) |
+| Hosting | Vercel + Supabase |
 | Tests | Vitest on scoring / workflow logic |
 
 Core logic lives in `src/lib/` (`scoring.ts`, `enrichment.ts`, `workflow.ts`). UI in `src/components/`. APIs under `src/app/api/`.
 
-## Database & deploy notes
+## Database
 
-- Local: `DATABASE_URL="file:./dev.db"` (see `.env.example`).
-- Production: set Prisma `provider` to `postgresql`, point `DATABASE_URL` at Neon/Supabase, run `npx prisma db push`, deploy to Vercel.
-- Static assets can use the CDN; enrichment cache is in Postgres/SQLite.
+Uses Supabase Postgres end-to-end (workflows, runs, report events, enrichment cache, import history).
+
+1. Copy `.env.example` → `.env` and paste your Supabase pooler + direct URLs  
+2. `npx prisma generate`  
+3. `node scripts/seed-demo.mjs`  
+
+On Vercel, set the same `DATABASE_URL` and `DIRECT_URL` project env vars.
 
 ## Author
 
