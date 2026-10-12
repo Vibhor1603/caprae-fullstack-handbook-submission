@@ -1,0 +1,10 @@
+company,website,industry,city,state,country,employees,revenue,ownerName,title,email,phone,linkedin,yearFounded
+Northwind HVAC LLC,northwindhvac.example,HVAC Services,Columbus,OH,US,35,$6M,Dana Reyes,Owner,dana@northwindhvac.example,614-555-0101,linkedin.com/in/sample-dana,1995
+Northwind HVAC,https://www.northwindhvac.example,HVAC,Columbus,OH,US,35,$6M,Dana Reyes,Owner,dana@northwindhvac.example,(614) 555-0101,,1995
+Bluegate Plumbing Co,bluegateplumbing.example,Plumbing,Austin,TX,US,18,$2.4M,Sam Ortiz,President,info@bluegateplumbing.example,512-555-0144,,2008
+Summit Precision Manufacturing,summitprecision.example,Contract Manufacturing,Dayton,OH,US,120,$22M,Lee Park,CEO,lee.park@summitprecision.example,937-555-0190,linkedin.com/in/sample-lee,1987
+CloudNova AI,cloudnova.example,Software,San Francisco,CA,US,4000,$900M,Alex Kim,VP Marketing,alex@cloudnova.example,415-555-0110,,2019
+Green Acre Landscaping,,Landscaping,Boise,ID,US,12,$1.2M,Pat Green,Founder,patgreenlawns@gmail.com,208-555-0175,,2001
+Ghost Leads Inc,,Consulting,,,US,,,,,,,,
+Broken Email Logistics,brokenlogistics.example,Logistics,Reno,NV,US,60,$9M,Chris Lo,Owner,chris@,,,1999
+Harbor Accounting Group,harboracct.example,Accounting,Portland,ME,US,22,$3M,Morgan Bell,Managing Partner,morgan@harboracct.example,207-555-0122,,2005
