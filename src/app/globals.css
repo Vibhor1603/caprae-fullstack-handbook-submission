@@ -545,22 +545,21 @@ button.kpi-stat-card:active {
   min-height: 0;
 }
 
-/* Equal-column fact grid — columns stay aligned; long text clamps inside the cell */
+/*
+ * Strict equal columns only — never span / flex-grow per field.
+ * Wider cells via fewer columns so email/LinkedIn fit more often;
+ * overflow always ellipsizes inside the cell (hover shows full value).
+ */
 .fact-grid {
   display: grid;
   width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 1.25rem;
-  row-gap: 0.15rem;
+  column-gap: 1.5rem;
+  row-gap: 0.25rem;
 }
-@media (min-width: 720px) {
+@media (min-width: 640px) {
   .fact-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@media (min-width: 1100px) {
-  .fact-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 .fact-row {
@@ -568,14 +567,7 @@ button.kpi-stat-card:active {
   align-items: flex-start;
   gap: 0.75rem;
   min-width: 0;
-  padding: 0.7rem 0.35rem 0.7rem 0;
-}
-/* Long fields get two columns so email / LinkedIn / services can breathe */
-@media (min-width: 720px) {
-  .fact-row--wide {
-    grid-column: span 2;
-    padding-right: 0.75rem;
-  }
+  padding: 0.65rem 0;
 }
 .fact-row-head {
   display: flex;
@@ -614,21 +606,11 @@ button.kpi-stat-card:active {
   margin-top: 0.15rem;
   font-size: 0.875rem;
   font-weight: 600;
-  line-height: 1.35;
   letter-spacing: -0.02em;
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.fact-row--wide dd {
-  white-space: normal;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  text-overflow: ellipsis;
 }
 
 /* Open-card fit: bigger mono number with a soft highlight, no ring */
