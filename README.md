@@ -6,6 +6,8 @@ SaaSquatch already scrapes and exports leads. This app sits **after the CSV expo
 
 Sample CSV uses fictional companies (`.example` domains).
 
+**Live demo:** [https://caprae-deal-sourcing.vercel.app](https://caprae-deal-sourcing.vercel.app)
+
 ## What we built
 
 1. **Leads** — Upload a SaaSquatch-style CSV (or load sample). Deduplicate, filter junk, score A / B / C with clear reasons and a short “why now” line. Optional website enrich with confidence per field.
