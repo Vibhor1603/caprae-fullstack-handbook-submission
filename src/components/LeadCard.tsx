@@ -11,6 +11,7 @@ import { ScoreBreakdown } from '@/components/ScoreBreakdown'
 import { ScoreMeter } from '@/components/ScoreMeter'
 import { StatusBadge, TierBadge } from '@/components/StatusBadge'
 import { StageBadge } from '@/components/StageSelect'
+import { FactScrollValue } from '@/components/FactScrollValue'
 import { LeadActivityTimeline } from '@/components/LeadActivityTimeline'
 import { LeadCrmConnectStrip } from '@/components/LeadCrmConnectStrip'
 import type { LeadActivityItem } from '@/lib/profile'
@@ -181,9 +182,7 @@ export function LeadCard({
                               ) : null}
                             </div>
                             <dd>
-                              <div className="fact-scroll" title={f.value} tabIndex={0}>
-                                {f.value}
-                              </div>
+                              <FactScrollValue value={f.value} />
                             </dd>
                           </div>
                         </div>

@@ -608,36 +608,47 @@ button.kpi-stat-card:active {
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #fff;
+  min-width: 0;
 }
-/* Truncate by default; on hover show a thin in-cell slider to read the rest */
+/*
+ * Long values: ellipsis at rest. On hover, slide text inside the cell.
+ * No overflow:auto / padding changes — those caused the layout jump.
+ */
 .fact-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.fact-scroll-inner {
+  display: inline-block;
   max-width: 100%;
   overflow: hidden;
-  white-space: nowrap;
   text-overflow: ellipsis;
-  scrollbar-width: none;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
-.fact-row:hover .fact-scroll,
-.fact-row:focus-within .fact-scroll {
+.fact-row:hover .fact-scroll[data-overflow='1'] .fact-scroll-inner,
+.fact-row:focus-within .fact-scroll[data-overflow='1'] .fact-scroll-inner {
+  max-width: none;
+  overflow: visible;
   text-overflow: clip;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
-  padding-bottom: 3px;
+  animation: fact-reveal 4.5s ease-in-out infinite alternate;
 }
-.fact-row:hover .fact-scroll::-webkit-scrollbar,
-.fact-row:focus-within .fact-scroll::-webkit-scrollbar {
-  height: 4px;
+@keyframes fact-reveal {
+  0%,
+  12% {
+    transform: translateX(0);
+  }
+  88%,
+  100% {
+    transform: translateX(var(--fact-shift));
+  }
 }
-.fact-row:hover .fact-scroll::-webkit-scrollbar-track,
-.fact-row:focus-within .fact-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.fact-row:hover .fact-scroll::-webkit-scrollbar-thumb,
-.fact-row:focus-within .fact-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.35);
-  border-radius: 999px;
+@media (prefers-reduced-motion: reduce) {
+  .fact-row:hover .fact-scroll[data-overflow='1'] .fact-scroll-inner,
+  .fact-row:focus-within .fact-scroll[data-overflow='1'] .fact-scroll-inner {
+    animation: none;
+  }
 }
 
 /* Open-card fit: bigger mono number with a soft highlight, no ring */
