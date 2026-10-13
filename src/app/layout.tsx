@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Deal Sourcing Autopilot · SaaSquatch',
+  title: 'DealFit · SaaSquatch add-on',
   description:
-    'ETA deal-sourcing add-on for SaaSquatch: ethical enrich, acquisition-fit scoring, n8n-style automation, CRM handoff.',
+    'ETA deal sourcing on SaaSquatch exports: fit scoring, owner and succession signals, automated outreach, CRM handoff.',
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

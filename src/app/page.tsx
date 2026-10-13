@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type DragEvent } from 'react'
-import { FileUp, Sparkles, Upload } from 'lucide-react'
+import { FileUp, Sparkles, Trash2, Upload } from 'lucide-react'
 import Papa from 'papaparse'
 import {
   DEFAULT_ICP,
@@ -19,10 +19,9 @@ import { withProfiles, type LeadActivityItem } from '@/lib/profile'
 import type { PipelineStage } from '@/lib/pipeline'
 import { assignDemoStages } from '@/lib/demoSeed'
 import { IcpPanel } from '@/components/IcpPanel'
-import { SummaryCards } from '@/components/SummaryCards'
 import { LeadCard } from '@/components/LeadCard'
+import { LeadProfile } from '@/components/LeadProfile'
 import { RunsDashboard } from '@/components/RunsDashboard'
-import { FunnelReport } from '@/components/FunnelReport'
 import { TodayBoard, type RunLite } from '@/components/TodayBoard'
 import {
   isAutomationFeedKind,
@@ -52,6 +51,7 @@ const AutomationCanvas = dynamic(
 )
 
 const MAX_AUTOPILOT_A_TIERS = 8
+const LEADS_PER_PAGE = 10
 
 function cloneIcp(icp: Icp = DEFAULT_ICP): Icp {
   return {
@@ -94,6 +94,8 @@ export default function Home() {
   const [icp, setIcp] = useState<Icp>(() => cloneIcp())
   const [filters, setFilters] = useState<SharedFilters>({ ...DEFAULT_FILTERS })
   const [openId, setOpenId] = useState<string | null>(null)
+  const [leadPage, setLeadPage] = useState(0)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [tab, setTab] = useState<AppTab>('today')
   const [err, setErr] = useState<string | null>(null)
   const [warn, setWarn] = useState<string | null>(null)
@@ -167,6 +169,18 @@ export default function Home() {
     [leads, filters, enrichments],
   )
 
+  const leadPageCount = Math.max(1, Math.ceil(visible.length / LEADS_PER_PAGE))
+  const safeLeadPage = Math.min(leadPage, leadPageCount - 1)
+  const pagedVisible = useMemo(() => {
+    const start = safeLeadPage * LEADS_PER_PAGE
+    return visible.slice(start, start + LEADS_PER_PAGE)
+  }, [visible, safeLeadPage])
+
+  useEffect(() => {
+    setLeadPage(0)
+    setSelectedIds(new Set())
+  }, [filters.tier, filters.query, filters.stages, filters.industries, filters.states])
+
   const refreshTodayFeeds = useCallback(async () => {
     try {
       const [runsRes, reportRes] = await Promise.all([
@@ -238,6 +252,8 @@ export default function Home() {
   function resetLeadListUi() {
     setFilters({ ...DEFAULT_FILTERS })
     setOpenId(null)
+    setSelectedIds(new Set())
+    setLeadPage(0)
   }
 
   function applyTriagedLeads(scored: ScoredLead[], demo = false) {
@@ -478,6 +494,8 @@ export default function Home() {
       const list = await loadDemoData()
       setFilters({ ...DEFAULT_FILTERS, tier: 'A' })
       setOpenId(null)
+      setSelectedIds(new Set())
+      setLeadPage(0)
       const target =
         list.find(lead => !lead.junk && !lead.duplicateOf && lead.tier === 'A') || list[0]
       if (target) {
@@ -567,6 +585,39 @@ export default function Home() {
     startTransition(() => setIcp(next))
   }
 
+  function onLeadStageChange(leadId: string, stage: PipelineStage) {
+    startTransition(() => {
+      setRawLeads(previous =>
+        previous.map(lead =>
+          lead.id === leadId
+            ? {
+                ...lead,
+                stage,
+                stageChangedAt:
+                  stage !== lead.stage ? new Date().toISOString() : lead.stageChangedAt,
+              }
+            : lead,
+        ),
+      )
+    })
+    setActivities(a => ({
+      ...a,
+      [leadId]: [
+        {
+          kind: 'stage',
+          summary: `Stage → ${stage}`,
+          createdAt: new Date().toISOString(),
+        },
+        ...(a[leadId] || []),
+      ],
+    }))
+  }
+
+  const openLead = useMemo(
+    () => (openId ? leads.find(lead => lead.id === openId) || null : null),
+    [leads, openId],
+  )
+
   function onDrop(event: DragEvent) {
     event.preventDefault()
     setDragOver(false)
@@ -577,20 +628,114 @@ export default function Home() {
   }
 
   const hasLeads = leads.length > 0
-  const aCount = summary.tierA
+  const selectedLeads = useMemo(
+    () => leads.filter(l => selectedIds.has(l.id)),
+    [leads, selectedIds],
+  )
+  const visibleIds = useMemo(() => visible.map(l => l.id), [visible])
+  const allVisibleMarked =
+    visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id))
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function markAllVisible() {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      for (const id of visibleIds) {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  function unmarkAll() {
+    setSelectedIds(new Set())
+  }
+
+  function deleteSelected() {
+    if (!selectedIds.size) {
+      return
+    }
+    if (
+      !window.confirm(
+        `Remove ${selectedIds.size} marked lead${selectedIds.size === 1 ? '' : 's'} from this session?`,
+      )
+    ) {
+      return
+    }
+    const drop = selectedIds
+    startTransition(() => {
+      setRawLeads(prev => prev.filter(l => !drop.has(l.id)))
+    })
+    setEnrichments(prev => {
+      const next = { ...prev }
+      for (const id of drop) {
+        delete next[id]
+      }
+      return next
+    })
+    setActivities(prev => {
+      const next = { ...prev }
+      for (const id of drop) {
+        delete next[id]
+      }
+      return next
+    })
+    if (openId && drop.has(openId)) {
+      setOpenId(null)
+    }
+    setSelectedIds(new Set())
+  }
+
+  const exportScopes = useMemo(() => {
+    const scopes = [
+      {
+        id: 'selected',
+        label: 'Marked only',
+        leads: selectedLeads,
+      },
+      {
+        id: 'filter',
+        label: 'Current filter',
+        leads: visible,
+      },
+      {
+        id: 'a',
+        label: 'All A-tier',
+        leads: leads.filter(l => l.tier === 'A'),
+      },
+      {
+        id: 'all',
+        label: 'All clean',
+        leads: leads.filter(l => !l.junk && !l.duplicateOf),
+      },
+    ]
+    return scopes
+  }, [selectedLeads, visible, leads])
 
   return (
     <main className="mx-auto w-full max-w-[1440px] px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:px-10">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-xl space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
-            SaaSquatch add-on · Caprae
+            SaaSquatch add-on · ETA deal sourcing
           </p>
           <h1 className="text-[1.85rem] font-bold leading-[1.1] tracking-[-0.03em] text-white sm:text-[2.15rem]">
-            Deal Sourcing Autopilot
+            DealFit
           </h1>
           <p className="text-[14px] leading-relaxed text-[var(--sq-text-secondary)]">
-            Score SaaSquatch CSVs, fill gaps from websites, and export the best leads to CRM.
+            Score SaaSquatch exports for acquisition fit — size, tenure, owner, succession — then
+            run outreach and CRM sync from the same shortlist.
           </p>
         </div>
 
@@ -606,11 +751,37 @@ export default function Home() {
             <Sparkles className="size-3.5" strokeWidth={1.75} />
             {sampleBusy ? 'Loading demo…' : 'Use demo data'}
           </button>
-          {hasLeads && (tab === 'leads' || tab === 'today') && (
+          {hasLeads && (
             <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="sr-file"
+                disabled={busy}
+                aria-label="Upload CSV"
+                onChange={event => {
+                  const file = event.target.files?.[0]
+                  if (file) {
+                    void uploadCsvFile(file)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={busy}
+                onClick={() => fileRef.current?.click()}
+              >
+                Replace CSV
+              </button>
               <ExportPresetsMenu
-                leads={filters.tier === 'A' ? leads.filter(l => l.tier === 'A') : visible}
-                label={filters.tier === 'A' ? `A-tier (${aCount})` : `Export (${visible.filter(l => !l.junk && !l.duplicateOf).length})`}
+                scopes={exportScopes}
+                label={
+                  selectedIds.size
+                    ? `Export (${selectedIds.size} marked)`
+                    : `Export (${visible.filter(l => !l.junk && !l.duplicateOf).length})`
+                }
               />
             </>
           )}
@@ -629,7 +800,6 @@ export default function Home() {
           { id: 'leads', label: 'Leads' },
           { id: 'automate', label: 'Automate' },
           { id: 'runs', label: 'Runs' },
-          { id: 'report', label: 'Report' },
         ]}
       />
 
@@ -665,16 +835,6 @@ export default function Home() {
           <AutomationCanvas onSaved={() => setRunTick(tick => tick + 1)} integrations={integrations} />
         )}
         {tab === 'runs' && <RunsDashboard refreshKey={runTick} />}
-        {tab === 'report' && (
-          <FunnelReport
-            leads={leads}
-            enrichments={enrichments}
-            refreshKey={runTick}
-            filters={filters}
-            onFiltersChange={setFilters}
-          />
-        )}
-
         {tab === 'leads' && !hasLeads && (
           <div className="space-y-5">
             <section
@@ -744,36 +904,24 @@ export default function Home() {
           </div>
         )}
 
-        {tab === 'leads' && hasLeads && (
+        {tab === 'leads' && hasLeads && openLead && (
+          <LeadProfile
+            item={openLead}
+            enrichment={enrichments[openLead.id]}
+            activities={activities[openLead.id] || []}
+            enriching={enrichingId === openLead.id}
+            onBack={() => setOpenId(null)}
+            onStageChange={stage => onLeadStageChange(openLead.id, stage)}
+            onEnrich={() => void enrichOneLead(openLead)}
+            onRunAutomation={() => void runWorkflowsForLead(openLead, 'tier_changed')}
+          />
+        )}
+
+        {tab === 'leads' && hasLeads && !openLead && (
           <div className="space-y-5">
-            <div className="space-y-3">
-              <div className="flex items-center justify-end gap-3">
-                {pending && <span className="text-xs text-[var(--sq-text-muted)]">Updating…</span>}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="sr-file"
-                  disabled={busy}
-                  aria-label="Upload CSV"
-                  onChange={event => {
-                    const file = event.target.files?.[0]
-                    if (file) {
-                      void uploadCsvFile(file)
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  disabled={busy}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  Replace CSV
-                </button>
-              </div>
-              <SummaryCards summary={summary} />
-            </div>
+            {pending && (
+              <p className="text-right text-xs text-[var(--sq-text-muted)]">Updating…</p>
+            )}
 
             <IcpPanel icp={icp} onChange={onIcpChange} defaultOpen={false} />
 
@@ -784,28 +932,82 @@ export default function Home() {
               onChange={setFilters}
             />
 
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[12px] text-[var(--sq-text-muted)]">
+                {selectedIds.size
+                  ? `${selectedIds.size} marked`
+                  : 'Mark rows to export or delete a subset'}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={!visible.length}
+                  onClick={() => (allVisibleMarked ? unmarkAll() : markAllVisible())}
+                >
+                  {allVisibleMarked ? 'Unmark all' : 'Mark all (filter)'}
+                </button>
+                {selectedIds.size > 0 && (
+                  <>
+                    <button type="button" className="btn btn-ghost" onClick={unmarkAll}>
+                      Clear marks
+                    </button>
+                    <button type="button" className="btn btn-ghost" onClick={deleteSelected}>
+                      <Trash2 className="size-3.5" strokeWidth={1.75} />
+                      Delete marked
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
             <div key={filters.tier + filters.query} className="lead-sheet tab-view-fast">
               {visible.length === 0 && (
                 <p className="px-5 py-14 text-center text-sm font-medium text-[var(--sq-text-muted)]">
                   {filters.query.trim() ? 'No leads match that search.' : 'Nothing in this filter.'}
                 </p>
               )}
-              {visible.map((lead, index) => (
-                <div key={lead.id}>
-                  <LeadCard
-                    item={lead}
-                    index={index}
-                    open={openId === lead.id}
-                    enrichment={enrichments[lead.id]}
-                    enriching={enrichingId === lead.id}
-                    onEnrich={() => void enrichOneLead(lead)}
-                    onRunAutomation={() => void runWorkflowsForLead(lead, 'tier_changed')}
-                    activities={activities[lead.id] || []}
-                    onToggle={() => setOpenId(openId === lead.id ? null : lead.id)}
-                  />
-                </div>
+              {pagedVisible.map((lead, index) => (
+                <LeadCard
+                  key={lead.id}
+                  item={lead}
+                  index={index}
+                  selected={selectedIds.has(lead.id)}
+                  onToggleSelect={() => toggleSelect(lead.id)}
+                  onOpen={() => setOpenId(lead.id)}
+                />
               ))}
             </div>
+
+            {visible.length > LEADS_PER_PAGE && (
+              <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                <p className="text-[12px] text-[var(--sq-text-muted)]">
+                  {safeLeadPage * LEADS_PER_PAGE + 1}–
+                  {Math.min((safeLeadPage + 1) * LEADS_PER_PAGE, visible.length)} of {visible.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={safeLeadPage <= 0}
+                    onClick={() => setLeadPage(p => Math.max(0, p - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[12px] tabular-nums text-[var(--sq-text-secondary)]">
+                    {safeLeadPage + 1} / {leadPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={safeLeadPage >= leadPageCount - 1}
+                    onClick={() => setLeadPage(p => Math.min(leadPageCount - 1, p + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

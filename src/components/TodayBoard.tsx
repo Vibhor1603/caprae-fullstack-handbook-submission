@@ -5,14 +5,16 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
-  FileText,
   GitBranch,
   Loader2,
   Sparkles,
+  Target,
   TrendingUp,
+  Users,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { ScoredLead } from '@/lib/scoring'
-import { buildFunnelReport } from '@/lib/funnel'
+import { buildFunnelReport, buildReportActions } from '@/lib/funnel'
 import type { AutomationFeedItem } from '@/lib/todayFeed'
 import { StageBadge } from '@/components/StageSelect'
 import { TierBadge } from '@/components/StatusBadge'
@@ -24,7 +26,6 @@ export type TodayNav =
   | { tab: 'leads'; leadId?: string }
   | { tab: 'automate' }
   | { tab: 'runs' }
-  | { tab: 'report' }
 
 export type RunLite = {
   id: string
@@ -45,42 +46,57 @@ type Props = {
   demoBusy?: boolean
 }
 
-function Section({
+function Card({
   title,
   hint,
   icon: Icon,
   color,
+  action,
   children,
   empty,
+  className = '',
 }: {
   title: string
   hint?: string
-  icon: typeof Sparkles
+  icon: LucideIcon
   color: string
+  action?: { label: string; onClick: () => void }
   children: React.ReactNode
   empty?: string
+  className?: string
 }) {
-  const hasKids = Array.isArray(children)
-    ? children.length > 0
-    : Boolean(children)
+  const hasKids = Array.isArray(children) ? children.length > 0 : Boolean(children)
   return (
-    <section className="panel overflow-hidden">
-      <div className="border-b border-[var(--sq-border)] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="icon-well icon-well-sm" style={{ background: `${color}22`, color }}>
-            <Icon strokeWidth={1.75} />
-          </span>
-          <h2 className="text-[13px] font-semibold tracking-tight text-white">{title}</h2>
+    <section className={`panel overflow-hidden ${className}`.trim()}>
+      <div className="flex items-start justify-between gap-3 border-b border-[var(--sq-border)] px-5 py-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="icon-well icon-well-sm" style={{ background: `${color}22`, color }}>
+              <Icon strokeWidth={1.75} />
+            </span>
+            <h2 className="text-[13px] font-semibold tracking-tight text-white">{title}</h2>
+          </div>
+          {hint ? (
+            <p className="mt-1.5 pl-[calc(1.75rem+0.625rem)] text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
+              {hint}
+            </p>
+          ) : null}
         </div>
-        {hint ? (
-          <p className="mt-1.5 pl-[calc(1.75rem+0.5rem)] text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
-            {hint}
-          </p>
+        {action ? (
+          <button
+            type="button"
+            className="shrink-0 text-[11px] font-medium text-[var(--sq-text-muted)] transition-colors hover:text-white"
+            onClick={action.onClick}
+          >
+            {action.label}
+          </button>
         ) : null}
       </div>
       <div className="divide-y divide-[var(--sq-border)]">
-        {hasKids ? children : (
-          <p className="px-4 py-6 text-center text-[13px] text-[var(--sq-text-muted)]">
+        {hasKids ? (
+          children
+        ) : (
+          <p className="px-5 py-8 text-center text-[13px] text-[var(--sq-text-muted)]">
             {empty || 'Nothing here yet.'}
           </p>
         )}
@@ -105,7 +121,7 @@ function Row({
   return (
     <button
       type="button"
-      className="row-enter flex w-full items-center gap-3 px-4 py-3 text-left transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-white/[0.03] active:scale-[0.995]"
+      className="row-enter flex w-full items-center gap-3 px-5 py-3.5 text-left transition-[background,transform] duration-150 ease-[var(--ease-out)] hover:bg-white/[0.03] active:scale-[0.995]"
       style={{ animationDelay: `${Math.min(index, 8) * 36}ms` }}
       onClick={onClick}
     >
@@ -133,20 +149,34 @@ function FeedStatus({
   return <span className={`badge shrink-0 ${cls}`}>{label}</span>
 }
 
-function ActivityRow({ item, index = 0 }: { item: AutomationFeedItem; index?: number }) {
+function PulseItem({
+  icon: Icon,
+  color,
+  label,
+  value,
+  onClick,
+}: {
+  icon: LucideIcon
+  color: string
+  label: string
+  value: string
+  onClick: () => void
+}) {
   return (
-    <div
-      className="row-enter flex items-start gap-3 px-4 py-3"
-      style={{ animationDelay: `${Math.min(index, 8) * 36}ms` }}
+    <button
+      type="button"
+      className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--sq-border)] bg-black/20 px-3.5 py-3 text-left transition-colors hover:border-[var(--sq-border-strong)] hover:bg-white/[0.03]"
+      onClick={onClick}
     >
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium leading-snug text-white">{item.title}</p>
-        {item.subtitle ? (
-          <p className="mt-1 text-[11px] leading-relaxed text-[var(--sq-text-muted)]">{item.subtitle}</p>
-        ) : null}
-      </div>
-      <FeedStatus label={item.statusLabel} tone={item.statusTone} />
-    </div>
+      <span className="icon-well icon-well-sm shrink-0" style={{ background: `${color}22`, color }}>
+        <Icon strokeWidth={1.75} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] text-[var(--sq-text-muted)]">{label}</span>
+        <span className="mt-0.5 block truncate text-[13px] font-medium text-white">{value}</span>
+      </span>
+      <ArrowRight className="size-3.5 shrink-0 text-[var(--sq-text-muted)]" strokeWidth={1.75} />
+    </button>
   )
 }
 
@@ -160,24 +190,32 @@ export function TodayBoard({
   demoBusy,
 }: Props) {
   const clean = leads.filter(l => !l.junk && !l.duplicateOf)
-  const newA = clean.filter(l => l.tier === 'A' && (l.stage === 'new' || l.stage === 'enriched')).slice(0, 8)
+  const aTier = clean.filter(l => l.tier === 'A')
+  const newA = aTier
+    .filter(l => l.stage === 'new' || l.stage === 'enriched')
+    .slice(0, 6)
   const changed = clean
     .filter(l => l.prevTier && l.prevTier !== l.tier)
-    .slice(0, 8)
-  const pending = runs.filter(r => r.status === 'pending').slice(0, 6)
-  const done = runs.filter(r => r.status === 'done').slice(0, 4)
-  const failed = runs.filter(r => r.status === 'failed').slice(0, 4)
+    .slice(0, 3)
+  const recentRuns = [...runs].slice(0, 4)
   const followUps = clean
     .filter(l => l.followUpAt && new Date(l.followUpAt).getTime() <= Date.now() + 3 * 86400000)
-    .slice(0, 8)
+    .slice(0, 4)
   const funnel = buildFunnelReport(leads)
+  const nextActions = buildReportActions(leads).slice(0, 5)
+  const activity = automationFeed.slice(0, 5)
 
   if (!leads.length) {
     return (
       <div className="panel px-6 py-16 text-center">
         <span
           className="icon-well mx-auto mb-4"
-          style={{ background: 'rgba(251, 191, 36, 0.14)', color: '#fbbf24', width: '2.75rem', height: '2.75rem' }}
+          style={{
+            background: 'rgba(251, 191, 36, 0.14)',
+            color: '#fbbf24',
+            width: '2.75rem',
+            height: '2.75rem',
+          }}
         >
           <Sparkles strokeWidth={1.75} />
         </span>
@@ -200,52 +238,95 @@ export function TodayBoard({
     )
   }
 
+  const contacted = funnel.steps.find(s => s.stage === 'contacted')
+  const researched = funnel.steps.find(s => s.stage === 'enriched')
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {loading && (
         <p className="flex items-center gap-2 text-xs text-[var(--sq-text-muted)]">
           <Loader2 className="size-3.5 animate-spin" /> Refreshing…
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        {funnel.steps.slice(0, 3).map(step => {
-          const copy =
-            step.stage === 'new'
-              ? {
-                  label: 'In list',
-                  sub: 'Good leads (skip removed)',
-                }
-              : step.stage === 'enriched'
-                ? {
-                    label: 'Researched',
-                    sub:
-                      step.conversionFromPrev != null
-                        ? `${step.conversionFromPrev}% — details from website`
-                        : 'Details from website',
-                  }
-                : {
-                    label: 'Contacted',
-                    sub:
-                      step.conversionFromPrev != null
-                        ? `${step.conversionFromPrev}% — outreach started`
-                        : 'Outreach started',
-                  }
-          return (
-            <KpiStat
-              key={step.stage}
-              label={copy.label}
-              value={step.count}
-              sub={copy.sub}
-              subMuted={step.stage === 'new'}
-              onClick={() => onNavigate({ tab: 'report' })}
-            />
-          )
-        })}
+      {/* KPI strip — reference: compact metric cards with icon wells */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiStat
+          label="Shortlist"
+          value={funnel.cleanTotal}
+          sub="Clean leads in play"
+          subMuted
+          icon={Users}
+          tone="#94a3b8"
+          onClick={() => onNavigate({ tab: 'leads' })}
+        />
+        <KpiStat
+          label="A-tier"
+          value={funnel.tierA}
+          sub={newA.length ? `${newA.length} ready to work` : 'Best fits'}
+          icon={Sparkles}
+          tone="#fbbf24"
+          onClick={() => onNavigate({ tab: 'leads' })}
+        />
+        <KpiStat
+          label="Researched"
+          value={researched?.count ?? 0}
+          sub={
+            researched?.conversionFromPrev != null
+              ? `${researched.conversionFromPrev}% of shortlist`
+              : 'Website details filled'
+          }
+          icon={Target}
+          tone="#a78bfa"
+          onClick={() => onNavigate({ tab: 'leads' })}
+        />
+        <KpiStat
+          label="In motion"
+          value={contacted?.count ?? funnel.inMotion}
+          sub={followUps.length ? `${followUps.length} follow-up${followUps.length === 1 ? '' : 's'} due` : 'Outreach started'}
+          icon={TrendingUp}
+          tone="#4ade80"
+          onClick={() => onNavigate({ tab: 'leads' })}
+        />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Best matches (A)" icon={Sparkles} color="#fbbf24" empty="No A-tier leads yet.">
+      {/* Primary row — actions + matches (asymmetric like reference mid-row) */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Card
+          className="lg:col-span-3"
+          title="Do this next"
+          hint="Highest-leverage moves on this shortlist."
+          icon={CheckCircle2}
+          color="#4ade80"
+          empty="Shortlist looks quiet — open Leads or run Automate."
+          action={{ label: 'Open leads', onClick: () => onNavigate({ tab: 'leads' }) }}
+        >
+          {nextActions.map((action, i) => (
+            <Row
+              key={action.id}
+              index={i}
+              title={action.title}
+              meta={action.detail}
+              onClick={() =>
+                onNavigate(
+                  action.leadId
+                    ? { tab: 'leads', leadId: action.leadId }
+                    : { tab: 'leads' },
+                )
+              }
+            />
+          ))}
+        </Card>
+
+        <Card
+          className="lg:col-span-2"
+          title="Best matches"
+          hint="A-tier, still early stage."
+          icon={Sparkles}
+          color="#fbbf24"
+          empty="No A-tier leads yet."
+          action={{ label: 'All leads', onClick: () => onNavigate({ tab: 'leads' }) }}
+        >
           {newA.map((l, i) => (
             <Row
               key={l.id}
@@ -253,111 +334,140 @@ export function TodayBoard({
               title={l.lead.company || l.id}
               meta={l.whyNow}
               onClick={() => onNavigate({ tab: 'leads', leadId: l.id })}
-              trailing={
-                <span className="flex items-center gap-1.5">
-                  <TierBadge tier={l.tier} />
-                  <StageBadge stage={l.stage} />
-                </span>
-              }
-            />
-          ))}
-        </Section>
-
-        <Section title="Score changes" icon={TrendingUp} color="#60a5fa" empty="No score changes yet.">
-          {changed.map((l, i) => (
-            <Row
-              key={l.id}
-              index={i}
-              title={l.lead.company || l.id}
-              meta={`${l.prevTier} → ${l.tier} · ${l.prevScore ?? '—'} → ${l.score}`}
-              onClick={() => onNavigate({ tab: 'leads', leadId: l.id })}
               trailing={<TierBadge tier={l.tier} />}
             />
           ))}
-        </Section>
+        </Card>
+      </div>
 
-        <Section title="Workflow runs" icon={GitBranch} color="#a78bfa" empty="No runs yet — open Automate.">
-          {[...pending, ...failed, ...done].slice(0, 8).map((r, i) => (
-            <Row
-              key={r.id}
-              index={i}
-              title={r.workflowName || 'Workflow'}
-              meta={`${r.trigger} · ${r.leadLabel || '—'} · ${r.status}`}
-              onClick={() => onNavigate({ tab: 'runs' })}
-              trailing={
-                r.status === 'pending' ? (
-                  <Clock className="size-3.5 text-[#fbbf24]" />
-                ) : r.status === 'failed' ? (
-                  <AlertTriangle className="size-3.5 text-sq-danger" />
-                ) : (
-                  <CheckCircle2 className="size-3.5 text-[#4ade80]" />
+      {/* Secondary row — activity feed + pulse modules (not six identical lists) */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Card
+          className="lg:col-span-3"
+          title="Activity"
+          hint="Workflow runs and what they did."
+          icon={GitBranch}
+          color="#a78bfa"
+          empty="Run a template on Automate to fill this."
+          action={{ label: 'View runs', onClick: () => onNavigate({ tab: 'runs' }) }}
+        >
+          {recentRuns.length === 0 && activity.length === 0
+            ? null
+            : [
+                ...recentRuns.map((r, i) => (
+                  <Row
+                    key={r.id}
+                    index={i}
+                    title={r.workflowName || 'Workflow'}
+                    meta={`${r.trigger} · ${r.leadLabel || '—'} · ${r.status}`}
+                    onClick={() => onNavigate({ tab: 'runs' })}
+                    trailing={
+                      r.status === 'pending' ? (
+                        <Clock className="size-3.5 text-[#fbbf24]" />
+                      ) : r.status === 'failed' ? (
+                        <AlertTriangle className="size-3.5 text-sq-danger" />
+                      ) : (
+                        <CheckCircle2 className="size-3.5 text-[#4ade80]" />
+                      )
+                    }
+                  />
+                )),
+                ...activity.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className="row-enter flex items-start gap-3 px-5 py-3.5"
+                    style={{
+                      animationDelay: `${Math.min(i + recentRuns.length, 8) * 36}ms`,
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium leading-snug text-white">
+                        {item.title}
+                      </p>
+                      {item.subtitle ? (
+                        <p className="mt-1 text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
+                          {item.subtitle}
+                        </p>
+                      ) : null}
+                    </div>
+                    <FeedStatus label={item.statusLabel} tone={item.statusTone} />
+                  </div>
+                )),
+              ]}
+        </Card>
+
+        <section className="panel overflow-hidden px-5 py-4 lg:col-span-2">
+          <div className="mb-3 flex items-center gap-2.5">
+            <span
+              className="icon-well icon-well-sm"
+              style={{ background: 'rgba(251, 146, 60, 0.14)', color: '#fb923c' }}
+            >
+              <Clock strokeWidth={1.75} />
+            </span>
+            <h2 className="text-[13px] font-semibold tracking-tight text-white">Needs attention</h2>
+          </div>
+          <div className="space-y-2.5">
+            <PulseItem
+              icon={Clock}
+              color="#fb923c"
+              label="Follow-ups"
+              value={
+                followUps.length
+                  ? `${followUps.length} due · ${followUps[0].lead.company || 'lead'}`
+                  : 'None scheduled'
+              }
+              onClick={() =>
+                onNavigate(
+                  followUps[0]
+                    ? { tab: 'leads', leadId: followUps[0].id }
+                    : { tab: 'leads' },
                 )
               }
             />
-          ))}
-        </Section>
-
-        <Section
-          title="What ran"
-          hint="Emails, CRM syncs, and alerts from your workflows."
-          icon={FileText}
-          color="#fbbf24"
-          empty="Run a template on Automate to fill this list."
-        >
-          {automationFeed.slice(0, 8).map((item, i) => (
-            <ActivityRow key={item.id} item={item} index={i} />
-          ))}
-        </Section>
-
-        <Section
-          title="Follow-ups due"
-          icon={Clock}
-          color="#fb923c"
-          empty="No follow-ups scheduled."
-        >
-          {followUps.map((l, i) => (
-            <Row
-              key={l.id}
-              index={i}
-              title={l.lead.company || l.id}
-              meta={
-                l.followUpAt
-                  ? `Due ${new Date(l.followUpAt).toLocaleDateString()}`
-                  : 'Follow up'
+            <PulseItem
+              icon={TrendingUp}
+              color="#60a5fa"
+              label="Score changes"
+              value={
+                changed.length
+                  ? `${changed.length} moved · ${changed[0].lead.company || 'lead'}`
+                  : 'No tier moves yet'
               }
-              onClick={() => onNavigate({ tab: 'leads', leadId: l.id })}
-              trailing={<StageBadge stage={l.stage} />}
+              onClick={() =>
+                onNavigate(
+                  changed[0] ? { tab: 'leads', leadId: changed[0].id } : { tab: 'leads' },
+                )
+              }
             />
-          ))}
-        </Section>
-
-        <Section title="Deal stages" icon={TrendingUp} color="#94a3b8" empty="">
-          <div className="space-y-2 px-4 py-3">
-            {funnel.steps.map(step => {
-              const max = funnel.steps[0]?.count || 1
-              const pct = Math.max(4, Math.round((step.count / max) * 100))
-              return (
-                <button
-                  key={step.stage}
-                  type="button"
-                  className="block w-full text-left"
-                  onClick={() => onNavigate({ tab: 'report' })}
-                >
-                  <div className="mb-1 flex justify-between text-[11px]">
-                    <span className="text-[var(--sq-text-secondary)]">{step.label}</span>
-                    <span className="font-mono tabular-nums text-white">{step.count}</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                    <div
-                      className="h-full rounded-full bg-[#fbbf24] transition-[width] duration-300 ease-[var(--ease-out)]"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </button>
-              )
-            })}
+            <PulseItem
+              icon={GitBranch}
+              color="#a78bfa"
+              label="Automate"
+              value={
+                recentRuns.some(r => r.status === 'pending')
+                  ? 'Runs in flight'
+                  : 'Templates & canvas'
+              }
+              onClick={() => onNavigate({ tab: 'automate' })}
+            />
+            {followUps.slice(0, 2).map(l => (
+              <button
+                key={l.id}
+                type="button"
+                className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-1 py-1.5 text-left hover:bg-white/[0.03]"
+                onClick={() => onNavigate({ tab: 'leads', leadId: l.id })}
+              >
+                <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--sq-text-secondary)]">
+                  {l.lead.company || l.id}
+                  {l.followUpAt
+                    ? ` · ${new Date(l.followUpAt).toLocaleDateString()}`
+                    : ''}
+                </span>
+                <StageBadge stage={l.stage} />
+              </button>
+            ))}
           </div>
-        </Section>
+        </section>
       </div>
     </div>
   )

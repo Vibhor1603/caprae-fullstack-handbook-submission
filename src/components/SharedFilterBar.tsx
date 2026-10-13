@@ -58,11 +58,11 @@ export function SharedFilterBar({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <label className="flex items-center gap-1.5 text-[11px] text-[var(--sq-text-muted)]">
           Industry
           <select
-            className="field !py-1 !px-2 !text-[11px] !w-auto min-w-[8rem]"
+            className="field field-select min-w-[4.5rem]"
             value={filters.industries[0] || ''}
             onChange={e =>
               onChange({
@@ -82,7 +82,7 @@ export function SharedFilterBar({
         <label className="flex items-center gap-1.5 text-[11px] text-[var(--sq-text-muted)]">
           State
           <select
-            className="field !py-1 !px-2 !text-[11px] !w-auto min-w-[5rem]"
+            className="field field-select min-w-[3.75rem]"
             value={filters.states[0] || ''}
             onChange={e =>
               onChange({
@@ -102,7 +102,7 @@ export function SharedFilterBar({
         <label className="flex items-center gap-1.5 text-[11px] text-[var(--sq-text-muted)]">
           Stage
           <select
-            className="field !py-1 !px-2 !text-[11px] !w-auto min-w-[7rem]"
+            className="field field-select min-w-[4.5rem]"
             value={filters.stages[0] || ''}
             onChange={e =>
               onChange({
@@ -122,7 +122,7 @@ export function SharedFilterBar({
         <label className="flex items-center gap-1.5 text-[11px] text-[var(--sq-text-muted)]">
           Min % sure
           <select
-            className="field !py-1 !px-2 !text-[11px] !w-auto min-w-[5rem]"
+            className="field field-select min-w-[3.5rem]"
             value={filters.minConfidence == null ? '' : String(filters.minConfidence)}
             onChange={e =>
               onChange({

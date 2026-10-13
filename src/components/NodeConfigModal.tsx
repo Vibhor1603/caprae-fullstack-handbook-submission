@@ -371,7 +371,7 @@ export function NodeConfigModal({
 
           {kind === 'action_weekly_report' && (
             <p className="text-[12px] text-[var(--sq-text-secondary)]">
-              Queues this lead on the Funnel report for the digest export.
+              Queues this lead on the weekly digest (shows under Today activity).
             </p>
           )}
 

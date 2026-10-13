@@ -3,6 +3,12 @@
  * Scoring, enrichment, and workflows read/write through this shape.
  */
 import type { EnrichmentSnapshot } from '@/lib/enrichment'
+import {
+  buildDealSignals,
+  buildSuccessionSignals,
+  type DealSignals,
+  type SuccessionSignals,
+} from '@/lib/dealSignals'
 import type { RawLead, ScoredLead, ScoreFactor } from '@/lib/scoring'
 import { parseNumber } from '@/lib/scoring'
 import type { PipelineStage } from '@/lib/pipeline'
@@ -16,11 +22,7 @@ export type ProfileField<T = string | null> = {
   verifiedAt?: string
 }
 
-export type SuccessionSignals = {
-  longTenure: boolean
-  noVisibleSuccessor: boolean
-  businessAgeOver15: boolean
-}
+export type { SuccessionSignals, DealSignals }
 
 export type LeadProfile = {
   company: {
@@ -40,14 +42,14 @@ export type LeadProfile = {
     succession: SuccessionSignals
     contactability: ProfileField
   }
+  /** Caprae ETA buying-guide signals (succession, locations, reputation, …). */
+  deal: DealSignals
   insights: {
     whyNow: string
     riskFlags: string[]
     lastVerified: string | null
   }
 }
-
-const SUCCESSOR_HINT = /\b(jr|junior|ii|iii|successor|son|daughter|heir)\b/i
 
 function field<T>(
   value: T,
@@ -120,19 +122,7 @@ function contactability(lead: RawLead): string {
   return bits.length ? bits.join(' · ') : 'No direct contact'
 }
 
-export function buildSuccessionSignals(lead: RawLead, now = new Date()): SuccessionSignals {
-  const yr = parseNumber(lead.yearFounded)
-  const age = yr != null ? now.getFullYear() - yr : null
-  const title = String(lead.title || '').toLowerCase()
-  const founderLike = /\b(owner|founder|ceo|president|principal)\b/.test(title)
-  const successorVisible =
-    SUCCESSOR_HINT.test(String(lead.ownerName || '')) || SUCCESSOR_HINT.test(title)
-  return {
-    longTenure: age != null && age >= 10,
-    noVisibleSuccessor: founderLike && !successorVisible,
-    businessAgeOver15: age != null && age >= 15,
-  }
-}
+export { buildSuccessionSignals }
 
 export function buildLeadProfile(
   lead: RawLead,
@@ -148,19 +138,34 @@ export function buildLeadProfile(
   const verified = enrich?.lastVerified
   const yr = parseNumber(enrich?.yearFounded.value || lead.yearFounded)
   const age = yr != null ? now.getFullYear() - yr : null
-  const succession = buildSuccessionSignals(
-    {
-      ...lead,
-      yearFounded: yr ?? lead.yearFounded,
-    },
+  const leadForSignals: RawLead = {
+    ...lead,
+    yearFounded: yr ?? lead.yearFounded,
+    googleRating: lead.googleRating ?? enrich?.googleRating?.value ?? undefined,
+    reviewCount: lead.reviewCount ?? enrich?.reviewCount?.value ?? undefined,
+    locations: lead.locations ?? enrich?.locationsCount?.value ?? undefined,
+    licenses: lead.licenses ?? enrich?.licensesNote?.value ?? undefined,
+    saleSignal: lead.saleSignal ?? enrich?.saleLanguageSnippet?.value ?? undefined,
+    customerConcentration:
+      lead.customerConcentration ?? enrich?.customerConcentration?.value ?? undefined,
+  }
+  const deal = buildDealSignals(leadForSignals, {
+    corpus: enrich?.dealCorpus || undefined,
     now,
-  )
+  })
+  const succession = deal.succession
 
   const riskFlags = [...(opts?.riskFlags || [])]
   if (succession.businessAgeOver15 && succession.noVisibleSuccessor) {
     riskFlags.push('Succession risk: long tenure, no visible successor')
   }
-  if (!lead.email && !lead.phone) {
+  if (deal.saleOrRetirementLanguage) {
+    riskFlags.push('Sale / retirement language on file — verify with owner')
+  }
+  if (deal.concentrationRisk) {
+    riskFlags.push('Possible customer concentration — diligence item')
+  }
+  if (deal.ownerReachability === 'none') {
     riskFlags.push('Low contactability')
   }
 
@@ -206,8 +211,9 @@ export function buildLeadProfile(
         age != null ? 'inferred' : 'csv',
       ),
       succession,
-      contactability: field(contactability(lead), 'inferred'),
+      contactability: field(deal.ownerReachLabel || contactability(lead), 'inferred'),
     },
+    deal,
     insights: {
       whyNow: opts?.whyNow || '',
       riskFlags: [...new Set(riskFlags)],

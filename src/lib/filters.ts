@@ -1,5 +1,5 @@
 /**
- * Shared filter model for Leads, Today, and Funnel report.
+ * Shared filter model for Leads and Today.
  */
 import type { ScoredLead } from '@/lib/scoring'
 import type { EnrichmentSnapshot } from '@/lib/enrichment'

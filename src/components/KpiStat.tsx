@@ -1,8 +1,9 @@
 'use client'
 
+import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-/** Vertical KPI tile — label, value, and subtext always stacked (never inline). */
+/** Compact dashboard KPI tile — icon + label + large value + muted sub. */
 export function KpiStat({
   label,
   value,
@@ -10,6 +11,8 @@ export function KpiStat({
   subMuted,
   onClick,
   valueClassName = '',
+  icon: Icon,
+  tone = '#94a3b8',
 }: {
   label: string
   value: ReactNode
@@ -17,10 +20,19 @@ export function KpiStat({
   subMuted?: boolean
   onClick?: () => void
   valueClassName?: string
+  icon?: LucideIcon
+  tone?: string
 }) {
   const body = (
     <>
-      <span className="kpi-stat-label">{label}</span>
+      <div className="kpi-stat-top">
+        <span className="kpi-stat-label">{label}</span>
+        {Icon ? (
+          <span className="icon-well icon-well-sm" style={{ background: `${tone}22`, color: tone }}>
+            <Icon strokeWidth={1.75} />
+          </span>
+        ) : null}
+      </div>
       <span className={`kpi-stat-value ${valueClassName}`.trim()}>{value}</span>
       {sub != null ? (
         <span className={`kpi-stat-sub ${subMuted ? 'kpi-stat-sub--muted' : ''}`.trim()}>{sub}</span>

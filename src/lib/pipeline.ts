@@ -27,7 +27,7 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   lost: 'Lost',
 }
 
-/** Funnel spine used in reports (excludes closed/lost). */
+/** Funnel spine for stage counts (excludes closed/lost). */
 export const FUNNEL_STAGES: PipelineStage[] = [
   'new',
   'enriched',

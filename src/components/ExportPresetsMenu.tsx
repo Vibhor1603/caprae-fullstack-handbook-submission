@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Download, FileSpreadsheet } from 'lucide-react'
 import Papa from 'papaparse'
 import {
@@ -20,18 +20,44 @@ function downloadCsv(filename: string, rows: Record<string, string | number>[]) 
   URL.revokeObjectURL(anchor.href)
 }
 
+export type ExportScopeOption = {
+  id: string
+  label: string
+  leads: ScoredLead[]
+}
+
 export function ExportPresetsMenu({
   leads,
+  scopes,
   disabled,
   label = 'Export',
 }: {
-  leads: ScoredLead[]
+  /** Fallback when scopes omitted. */
+  leads?: ScoredLead[]
+  /** Prefer picking who to export (selected / filter / A-tier / all). */
+  scopes?: ExportScopeOption[]
   disabled?: boolean
   label?: string
 }) {
   const [open, setOpen] = useState(false)
   const [previewId, setPreviewId] = useState<ExportPresetId | null>(null)
+  const [scopeId, setScopeId] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+
+  const scopeList = useMemo(() => {
+    if (scopes?.length) {
+      return scopes.filter(s => s.leads.some(l => !l.junk && !l.duplicateOf))
+    }
+    if (leads?.length) {
+      return [{ id: 'default', label: 'Current list', leads }]
+    }
+    return []
+  }, [scopes, leads])
+
+  const activeScope =
+    scopeList.find(s => s.id === scopeId) || scopeList[0] || null
+  const activeLeads = activeScope?.leads || []
+  const clean = activeLeads.filter(l => !l.junk && !l.duplicateOf)
 
   useEffect(() => {
     if (!open) {
@@ -47,15 +73,21 @@ export function ExportPresetsMenu({
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
 
-  const preview = previewId ? previewMapping(leads, previewId, 3) : null
-  const clean = leads.filter(l => !l.junk && !l.duplicateOf)
+  useEffect(() => {
+    if (scopeList.length && !scopeList.some(s => s.id === scopeId)) {
+      setScopeId(scopeList[0].id)
+    }
+  }, [scopeList, scopeId])
+
+  const preview = previewId ? previewMapping(activeLeads, previewId, 3) : null
+  const canExport = clean.length > 0
 
   return (
     <div className="relative" ref={rootRef}>
       <button
         type="button"
         className="btn btn-ghost"
-        disabled={disabled || clean.length === 0}
+        disabled={disabled || scopeList.length === 0}
         onClick={() => setOpen(v => !v)}
         aria-expanded={open}
       >
@@ -65,41 +97,72 @@ export function ExportPresetsMenu({
 
       {open && (
         <div className="absolute right-0 z-40 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-[var(--radius)] border border-[var(--sq-border)] bg-[var(--ash-850)] shadow-xl shadow-black/40">
-          <div className="border-b border-[var(--sq-border)] px-3 py-2">
+          <div className="border-b border-[var(--sq-border)] px-3 py-2.5">
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sq-text-muted)]">
-              Export presets
+              Export
             </p>
-            <p className="text-[12px] text-[var(--sq-text-secondary)]">
-              {clean.length} lead{clean.length === 1 ? '' : 's'} · preview mapping first
+            {scopeList.length > 1 && (
+              <label className="mt-2 block">
+                <span className="mb-1 block text-[11px] text-[var(--sq-text-muted)]">Who to include</span>
+                <select
+                  className="field !py-2 !px-3 !text-[12px]"
+                  value={activeScope?.id || ''}
+                  onChange={e => {
+                    setScopeId(e.target.value)
+                    setPreviewId(null)
+                  }}
+                >
+                  {scopeList.map(s => {
+                    const n = s.leads.filter(l => !l.junk && !l.duplicateOf).length
+                    return (
+                      <option key={s.id} value={s.id} disabled={n === 0}>
+                        {s.label} ({n})
+                      </option>
+                    )
+                  })}
+                </select>
+              </label>
+            )}
+            <p className="mt-2 text-[12px] text-[var(--sq-text-secondary)]">
+              {clean.length} lead{clean.length === 1 ? '' : 's'} · pick a CRM format
             </p>
           </div>
-          <ul className="max-h-64 overflow-y-auto py-1">
-            {EXPORT_PRESETS.map(p => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors duration-150 hover:bg-white/[0.04]"
-                  onClick={() => setPreviewId(p.id)}
-                >
-                  <span
-                    className="icon-well icon-well-sm mt-0.5"
-                    style={{ background: 'rgba(52, 211, 153, 0.14)', color: '#34d399' }}
+
+          {!canExport ? (
+            <p className="px-3 py-4 text-[13px] text-[var(--sq-text-muted)]">
+              Nothing to export in this selection. Mark rows or change the filter.
+            </p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto py-1">
+              {EXPORT_PRESETS.map(p => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors duration-150 hover:bg-white/[0.04]"
+                    onClick={() => setPreviewId(p.id)}
                   >
-                    <FileSpreadsheet strokeWidth={1.75} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-semibold text-white">{p.label}</span>
-                    <span className="block text-[11px] text-[var(--sq-text-muted)]">{p.description}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <span
+                      className="icon-well icon-well-sm mt-0.5"
+                      style={{ background: 'rgba(52, 211, 153, 0.14)', color: '#34d399' }}
+                    >
+                      <FileSpreadsheet strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-white">{p.label}</span>
+                      <span className="block text-[11px] text-[var(--sq-text-muted)]">
+                        {p.description}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {preview && (
             <div className="border-t border-[var(--sq-border)] bg-[var(--ash-900)] px-3 py-3">
               <p className="mb-2 text-[12px] font-semibold text-white">
-                {preview.preset.label} mapping
+                {preview.preset.label} · {activeScope?.label}
               </p>
               <div className="mb-3 max-h-36 overflow-auto rounded-[var(--radius-xs)] border border-[var(--sq-border)]">
                 <table className="w-full text-left text-[10px]">
@@ -119,7 +182,10 @@ export function ExportPresetsMenu({
                     {preview.rows.map((row, i) => (
                       <tr key={i} className="border-b border-[var(--sq-border)] last:border-0">
                         {preview.headers.slice(0, 5).map(h => (
-                          <td key={h} className="max-w-[5rem] truncate px-2 py-1 text-[var(--sq-text-secondary)]">
+                          <td
+                            key={h}
+                            className="max-w-[5rem] truncate px-2 py-1 text-[var(--sq-text-secondary)]"
+                          >
                             {String(row[h] ?? '')}
                           </td>
                         ))}
@@ -142,8 +208,9 @@ export function ExportPresetsMenu({
                 <button
                   type="button"
                   className="btn btn-primary"
+                  disabled={!canExport}
                   onClick={() => {
-                    const rows = mapLeadsToPreset(leads, preview.preset.id)
+                    const rows = mapLeadsToPreset(activeLeads, preview.preset.id)
                     downloadCsv(`${preview.preset.id}_export.csv`, rows)
                     setOpen(false)
                     setPreviewId(null)

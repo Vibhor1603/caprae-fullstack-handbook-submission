@@ -162,3 +162,64 @@ export function contactLine(lead: RawLead): string {
   const people = [lead.ownerName, lead.title].map(fmt).filter(Boolean)
   return people.length ? people.join(' · ') : 'No contact on file'
 }
+
+export type BuyingGuideBit = {
+  key: string
+  label: string
+}
+
+function yearsInBusiness(yearFounded: string | number | undefined, now = new Date()): number | null {
+  const yr = Number(yearFounded)
+  if (!Number.isFinite(yr) || yr < 1800 || yr > now.getFullYear()) {
+    return null
+  }
+  return now.getFullYear() - yr
+}
+
+/**
+ * Compact acquisition signals for collapsed lead rows —
+ * what an ETA / searcher scans before opening a dossier.
+ */
+export function buyingGuideBits(
+  lead: RawLead,
+  whyNow?: string,
+  now = new Date(),
+): BuyingGuideBit[] {
+  const bits: BuyingGuideBit[] = []
+
+  const geo = [lead.city, lead.state].map(fmt).filter(Boolean)
+  if (geo.length) {
+    bits.push({ key: 'geo', label: geo.join(', ') })
+  }
+
+  const employees = fmt(lead.employees)
+  if (employees) {
+    bits.push({ key: 'headcount', label: `${employees} emp` })
+  }
+
+  const revenue = fmt(lead.revenue)
+  if (revenue) {
+    bits.push({ key: 'revenue', label: String(revenue).startsWith('$') ? revenue : `Rev ${revenue}` })
+  }
+
+  const age = yearsInBusiness(lead.yearFounded, now)
+  if (age != null) {
+    bits.push({ key: 'tenure', label: `${age}y business` })
+  }
+
+  const owner = fmt(lead.ownerName)
+  if (owner) {
+    const title = fmt(lead.title)
+    bits.push({ key: 'owner', label: title ? `${owner} · ${title}` : owner })
+  }
+
+  const thesis = fmt(whyNow)
+  if (thesis && bits.length < 5) {
+    bits.push({
+      key: 'why',
+      label: thesis.length > 72 ? `${thesis.slice(0, 69)}…` : thesis,
+    })
+  }
+
+  return bits.slice(0, 5)
+}

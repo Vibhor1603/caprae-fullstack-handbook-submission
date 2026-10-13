@@ -7,6 +7,7 @@
  */
 import type { RawLead } from '@/lib/scoring'
 import { normalizeDomain } from '@/lib/scoring'
+import { buildDealSignals, extractDealCorpusFromHtml } from '@/lib/dealSignals'
 
 export type FieldConfidence = { value: string | null; confidence: number }
 
@@ -19,8 +20,45 @@ export type EnrichmentSnapshot = {
   phone: FieldConfidence
   yearFounded: FieldConfidence
   services: FieldConfidence
+  /** Optional Caprae deal-intel fields (CSV + site heuristics). */
+  googleRating?: FieldConfidence
+  reviewCount?: FieldConfidence
+  locationsCount?: FieldConfidence
+  licensesNote?: FieldConfidence
+  saleLanguageSnippet?: FieldConfidence
+  customerConcentration?: FieldConfidence
+  /** Free-text corpus used to recompute deal signals. */
+  dealCorpus?: string
   lastVerified: string // ISO
   notes: string[]
+}
+
+function dealFieldsFromLead(lead: RawLead, corpus = '') {
+  const signals = buildDealSignals(lead, { corpus })
+  return {
+    googleRating: fc(
+      signals.googleRating != null ? String(signals.googleRating) : null,
+      signals.googleRating != null ? 0.75 : 0.1,
+    ),
+    reviewCount: fc(
+      signals.reviewCount != null ? String(signals.reviewCount) : null,
+      signals.reviewCount != null ? 0.7 : 0.1,
+    ),
+    locationsCount: fc(
+      signals.locationsCount != null ? String(signals.locationsCount) : null,
+      signals.locationsCount != null ? 0.8 : 0.15,
+    ),
+    licensesNote: fc(signals.licensesNote, signals.licensesNote ? 0.7 : 0.1),
+    saleLanguageSnippet: fc(
+      signals.saleLanguageSnippet,
+      signals.saleLanguageSnippet ? 0.65 : 0.1,
+    ),
+    customerConcentration: fc(
+      signals.customerConcentration,
+      signals.customerConcentration ? 0.6 : 0.1,
+    ),
+    dealCorpus: corpus,
+  }
 }
 
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -94,6 +132,20 @@ function extractFromHtml(html: string): {
 export function demoEnrich(lead: RawLead, domain: string | null): EnrichmentSnapshot {
   const now = new Date().toISOString()
   const yr = lead.yearFounded != null ? String(lead.yearFounded) : null
+  const services =
+    lead.industry
+      ? `${lead.industry} services for local commercial & residential clients`
+      : null
+  const corpus = [
+    services,
+    lead.siteSnippet,
+    lead.saleSignal,
+    lead.licenses,
+    lead.customerConcentration,
+    lead.locations != null ? `${lead.locations} locations` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return {
     domain,
     live: !!domain,
@@ -102,12 +154,13 @@ export function demoEnrich(lead: RawLead, domain: string | null): EnrichmentSnap
     email: fc(lead.email ? String(lead.email) : null, lead.email ? 0.7 : 0.2),
     phone: fc(lead.phone ? String(lead.phone) : null, lead.phone ? 0.75 : 0.15),
     yearFounded: fc(yr, yr ? 0.85 : 0.3),
-    services: fc(
-      lead.industry ? `${lead.industry} services for local commercial & residential clients` : null,
-      lead.industry ? 0.55 : 0.1,
-    ),
+    services: fc(services, lead.industry ? 0.55 : 0.1),
+    ...dealFieldsFromLead(lead, corpus),
     lastVerified: now,
-    notes: ['Demo enrichment (fictional .example domain — no live crawl)'],
+    notes: [
+      'Demo enrichment (fictional .example domain — no live crawl)',
+      'Deal signals from CSV + demo heuristics (not live press/court data)',
+    ],
   }
 }
 
@@ -133,6 +186,7 @@ export async function enrichFromWebsite(
       phone: fc(lead.phone ? String(lead.phone) : null, 0.4),
       yearFounded: fc(lead.yearFounded != null ? String(lead.yearFounded) : null, 0.4),
       services: fc(null, 0),
+      ...dealFieldsFromLead(lead),
       lastVerified: now.toISOString(),
       notes: ['No website/domain to crawl'],
     }
@@ -162,6 +216,7 @@ export async function enrichFromWebsite(
       phone: fc(lead.phone ? String(lead.phone) : null, 0.35),
       yearFounded: fc(lead.yearFounded != null ? String(lead.yearFounded) : null, 0.35),
       services: fc(null, 0),
+      ...dealFieldsFromLead(lead),
       lastVerified: now.toISOString(),
       notes: ['Blocked by robots.txt — kept CSV fields only'],
     }
@@ -184,7 +239,11 @@ export async function enrichFromWebsite(
     })
     const live = res.ok
     const html = live ? await res.text() : ''
-    const extracted = live ? extractFromHtml(html.slice(0, 400_000)) : { email: null, phone: null, year: null, services: null }
+    const slice = html.slice(0, 400_000)
+    const extracted = live
+      ? extractFromHtml(slice)
+      : { email: null, phone: null, year: null, services: null }
+    const corpus = live ? extractDealCorpusFromHtml(slice) : ''
 
     const snap: EnrichmentSnapshot = {
       domain,
@@ -198,8 +257,11 @@ export async function enrichFromWebsite(
         extracted.year ? 0.8 : lead.yearFounded != null ? 0.55 : 0.15,
       ),
       services: fc(extracted.services, extracted.services ? 0.65 : 0.1),
+      ...dealFieldsFromLead(lead, corpus),
       lastVerified: now.toISOString(),
-      notes: live ? ['Live fetch OK'] : [`HTTP ${res.status}`],
+      notes: live
+        ? ['Live fetch OK', 'Deal cues from public site text (heuristic — verify)']
+        : [`HTTP ${res.status}`],
     }
     if (opts?.cache) {await opts.cache.set(domain, snap, true, new Date(now.getTime() + CACHE_TTL_MS))}
     return snap
@@ -213,6 +275,7 @@ export async function enrichFromWebsite(
       phone: fc(lead.phone ? String(lead.phone) : null, 0.35),
       yearFounded: fc(lead.yearFounded != null ? String(lead.yearFounded) : null, 0.35),
       services: fc(null, 0),
+      ...dealFieldsFromLead(lead),
       lastVerified: now.toISOString(),
       notes: [`Fetch failed: ${e instanceof Error ? e.message : 'error'}`],
     }

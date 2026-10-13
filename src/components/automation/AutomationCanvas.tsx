@@ -607,7 +607,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
             Automation
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-white">
-            {draftName || activeWorkflow?.name || 'Deal-sourcing autopilot'}
+            {draftName || activeWorkflow?.name || 'DealFit automation'}
           </h2>
           <p className="mt-0.5 max-w-xl text-[12px] leading-relaxed text-[var(--sq-text-muted)]">
             Pick a template or build your own. Dry run = preview; live runs send email and sync CRM.

@@ -6,10 +6,10 @@ import type { Icp, ScoredLead } from '@/lib/scoring'
 import { DEFAULT_FILTERS, type SharedFilters } from '@/lib/filters'
 import type { LeadActivityItem } from '@/lib/profile'
 
-const STORAGE_KEY = 'sq-session-v2'
-const LEGACY_KEY = 'sq-session-v1'
+const STORAGE_KEY = 'sq-session-v3'
+const LEGACY_KEY = 'sq-session-v2'
 
-const TABS = ['today', 'leads', 'automate', 'runs', 'report'] as const
+const TABS = ['today', 'leads', 'automate', 'runs'] as const
 
 export type AppTab = (typeof TABS)[number]
 
@@ -75,7 +75,9 @@ export function loadSession(): SessionSnapshot | null {
   }
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_KEY)
+    // Drop pre–20-lead demo sessions (v2 held ~60 rows) so counts match the current CSV.
+    localStorage.removeItem(LEGACY_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) {
       return null
     }

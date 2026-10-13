@@ -2,7 +2,7 @@
 
 **DealFit** is an add-on for [SaaSquatch Leads](https://www.saasquatchleads.com/), aimed at ETA / search-fund buyers (Caprae’s audience).
 
-SaaSquatch scrapes and exports leads. DealFit takes that CSV next: clean the list, score acquisition fit, show buying-guide signals (geo, size, tenure, owner, why-now), fill gaps from websites, run deal workflows, and export to CRM.
+SaaSquatch scrapes and exports leads. DealFit takes that CSV next: clean the list, score acquisition fit, open a lead **dossier page** (not an accordion) with ETA buying-guide signals (geo, size, tenure, owner, succession, locations, reputation, licensed/bonded, sale/retirement cues, concentration, owner reachability), fill gaps from websites, run deal workflows, and export to CRM.
 
 **Live demo:** [https://caprae-deal-sourcing.vercel.app](https://caprae-deal-sourcing.vercel.app)
 
@@ -45,13 +45,15 @@ All sample companies are **fictional**. Domains use `.example` so enrich does no
 
 | File | Rows | Use |
 | --- | --- | --- |
-| `public/demo_leads.csv` | ~60 | Main demo (**Use demo data**) |
+| `public/demo_leads.csv` | 20 | Main demo (**Use demo data**) |
 | `public/sample_leads.csv` | ~10 | Smaller fallback |
 | `data/*.csv` | same idea | Copies for local reference |
 
-Columns include company, website, industry, location, employees, revenue, owner, title, email, phone, LinkedIn, and year founded. The list mixes strong A-tier fits, weaker B/C leads, and a few junk or duplicate rows so scoring and filters are easy to demo.
+Columns include company, website, industry, location, employees, revenue, owner, title, email, phone, LinkedIn, year founded, plus Caprae-oriented buying fields: `locations`, `googleRating`, `reviewCount`, `licenses`, `bonding`, `bbb`, `customerConcentration`, `saleSignal`, `siteSnippet` (all fictional). The list mixes strong A-tier fits, weaker B/C leads, and a few junk or duplicate rows so scoring and filters are easy to demo.
 
 **Use demo data** loads the CSV, scores it, fills stages for the demo story, enriches one A-tier lead, and fires schedule / template runs when workflows are seeded.
+
+**Leads UX:** compact list rows (company, tier, one-line context, score) → click opens the dossier subpage (**Back to list**). Mark rows (mark all / clear) to **export a subset** or **delete marked**. Export menu lets you choose marked / current filter / A-tier / all clean. List is paginated at **10 per page**.
 
 ---
 
@@ -60,10 +62,10 @@ Columns include company, website, industry, location, employees, revenue, owner,
 ```
 CSV or demo
   → clean + score (dedupe, junk filter, A/B/C + reasons)
-  → lead profile (company, owner, stage, activity)
+  → lead dossier page (company, owner, buying guide, stage, activity)
   → workflows (templates on the canvas)
   → runs + report events
-  → Today, Report, CRM export
+  → Today, CRM export
 ```
 
 | Path | Role |
@@ -92,24 +94,22 @@ Core scoring lives in `src/lib/scoring.ts` and is covered by `npm test`. Keep th
 
 ## What you can do in the app
 
-1. **Today** — Best matches, score changes, workflow runs, what automation did, follow-ups, short stage snapshot.  
-2. **Leads** — Upload CSV or load demo. Clean, score, filter, expand a lead to fill from website, see score reasons, history, and CRM export.  
+1. **Today** — Do-this-next actions, best matches, score changes, workflow runs, activity, follow-ups.  
+2. **Leads** — Upload CSV or load demo. Clean, score, filter, mark/export/delete; open a lead dossier for buying-guide signals and website fill.  
 3. **Stages** — New → Researched → Contacted → Replied → Call booked → LOI → Closed / Lost.  
-4. **Automate** — Three templates: A-tier intro, no-reply follow-up, weekly digest. Dry run previews; live runs send on the automation path (demo send is simulated, no real SMTP).  
+4. **Automate** — Templates and canvas; dry-run previews (demo send is simulated, no real SMTP).  
 5. **Runs** — Each workflow run and step results.  
-6. **Report** — Deal stages and conversion for the current list.  
-7. **Export** — HubSpot, Salesforce, Pipedrive, Sheets, or generic CSV.
+6. **Export** — Marked / filter / A-tier / all → HubSpot, Salesforce, Pipedrive, Sheets, or generic CSV.
 
 ---
 
 ## Quick walkthrough
 
 1. Click **Use demo data**.  
-2. Open **Today**, then expand a lead on **Leads**.  
+2. Open **Today**, then open a lead dossier on **Leads** (Back to list returns you).  
 3. **Fill from website** on an A-tier lead (demo path for `.example`).  
 4. Open **Automate**, pick a template, Save.  
-5. Check **Runs** and **Report**.  
-6. Export with a CRM preset (preview mapping first).
+5. Check **Runs**, then **Export** with a CRM preset (pick marked / filter / A-tier).
 
 ---
 

@@ -205,6 +205,30 @@ body {
   color: var(--ash-400);
 }
 
+/* Compact native selects — room for chevron, no oversized empty width */
+.field.field-select {
+  width: auto;
+  max-width: 10rem;
+  padding: 0.4rem 1.65rem 0.4rem 0.5rem;
+  font-size: 12px;
+  line-height: 1.25;
+  appearance: none;
+  background-color: var(--ash-900);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.45rem center;
+  background-size: 0.7rem;
+  cursor: pointer;
+}
+.field.field-select:focus {
+  border-color: var(--sq-border-strong);
+  background-color: var(--ash-850);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.45rem center;
+  background-size: 0.7rem;
+}
+
 /* Status: dark tint + bright text (not peach pills) */
 .badge {
   display: inline-flex;
@@ -422,11 +446,17 @@ body {
   background: var(--ash-850);
   border: 1px solid var(--sq-border);
 }
+.kpi-stat-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
 .kpi-stat-card {
   display: block;
   width: 100%;
-  min-height: 5.5rem;
-  padding: 1rem 1.15rem 1.05rem;
+  min-height: 5.75rem;
+  padding: 1.05rem 1.15rem 1.1rem;
   border-radius: var(--radius);
   background: var(--ash-850);
   border: 1px solid var(--sq-border);
@@ -519,17 +549,103 @@ button.kpi-stat-card:active {
   color: inherit;
   cursor: pointer;
 }
+.lead-card-summary--select {
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 0.65rem 0.75rem;
+  cursor: default;
+  padding-left: 0.85rem;
+  padding-right: 0.5rem;
+}
+.lead-card-open {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0.75rem 0.15rem 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+.lead-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+.lead-select input {
+  appearance: none;
+  width: 0.82rem;
+  height: 0.82rem;
+  margin: 0;
+  flex-shrink: 0;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: var(--ash-850);
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.lead-select input:hover {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: var(--ash-800);
+}
+.lead-select input:checked {
+  border-color: var(--ash-300);
+  background-color: var(--ash-700);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23f5f5f5' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3.5 8.5 6.5 11.5 12.5 4.5'/%3E%3C/svg%3E");
+  background-size: 0.62rem;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.lead-select input:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.35);
+  outline-offset: 2px;
+}
+.lead-card[data-selected='true'] {
+  background: rgba(255, 255, 255, 0.03);
+}
 .lead-card[data-open='true'] .lead-card-summary {
   grid-template-columns: 2.5rem minmax(0, 1fr) auto;
 }
 @media (hover: hover) and (pointer: fine) {
-  .lead-card-summary:hover {
+  .lead-card-summary:hover,
+  .lead-card-open:hover {
     background: rgba(255, 255, 255, 0.02);
   }
 }
-.lead-card-summary:focus-visible {
+.lead-card-summary:focus-visible,
+.lead-card-open:focus-visible {
   outline: 2px solid #fff;
   outline-offset: -2px;
+}
+
+/* Collapsed-row acquisition snapshot (ETA buying guide) */
+.buying-guide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.buying-guide-bit {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--sq-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--sq-text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
 }
 
 .lead-card-panel {
@@ -568,6 +684,9 @@ button.kpi-stat-card:active {
   gap: 0.75rem;
   min-width: 0;
   padding: 0.65rem 0;
+}
+.fact-row--text {
+  gap: 0;
 }
 .fact-row-head {
   display: flex;
@@ -664,10 +783,7 @@ button.kpi-stat-card:active {
   width: 1.1rem;
   height: 1.1rem;
   color: var(--ash-400);
-  transition: transform 220ms var(--ease-out);
-}
-.lead-card[data-open='true'] .chevron {
-  transform: rotate(180deg);
+  opacity: 0.75;
 }
 
 @keyframes enter-up {
@@ -695,9 +811,6 @@ button.kpi-stat-card:active {
   }
   .btn:active:not(:disabled),
   .seg-item:active:not(:disabled) {
-    transform: none;
-  }
-  .lead-card[data-open='true'] .chevron {
     transform: none;
   }
 }

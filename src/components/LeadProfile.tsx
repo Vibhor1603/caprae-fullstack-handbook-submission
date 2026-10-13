@@ -1,40 +1,81 @@
 'use client'
 
-import { ArrowLeft, Building2, UserRound, Zap, Workflow } from 'lucide-react'
+import { ArrowLeft, Workflow, Zap } from 'lucide-react'
 import type { ScoredLead } from '@/lib/scoring'
 import type { EnrichmentSnapshot } from '@/lib/enrichment'
 import type { LeadActivityItem } from '@/lib/profile'
 import { buildLeadProfile } from '@/lib/profile'
+import { factsWithEnrichment } from '@/lib/leadDisplay'
 import { CompanyAvatar } from '@/components/CompanyAvatar'
-import { ConfidenceMeter } from '@/components/ConfidenceMeter'
+import { CollapsibleSection } from '@/components/CollapsibleSection'
+import { ReasonChips } from '@/components/ReasonChips'
 import { ScoreBreakdown } from '@/components/ScoreBreakdown'
+import { ScoreMeter } from '@/components/ScoreMeter'
 import { StageSelect, StageBadge } from '@/components/StageSelect'
 import { TierBadge, StatusBadge } from '@/components/StatusBadge'
+import { FactScrollValue } from '@/components/FactScrollValue'
+import { LeadActivityTimeline } from '@/components/LeadActivityTimeline'
+import { LeadCrmConnectStrip } from '@/components/LeadCrmConnectStrip'
 import { ExportPresetsMenu } from '@/components/ExportPresetsMenu'
 import type { PipelineStage } from '@/lib/pipeline'
 
-function FieldRow({
-  label,
-  value,
-  source,
-}: {
-  label: string
-  value: string | number | null | undefined
-  source?: string
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 border-b border-[var(--sq-border)] py-2 last:border-0">
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--sq-text-muted)]">
-          {label}
-        </p>
-        <p className="mt-0.5 text-[13px] text-white">{value ?? '—'}</p>
-      </div>
-      {source ? (
-        <span className="shrink-0 text-[10px] text-[var(--sq-text-muted)]">{source}</span>
-      ) : null}
-    </div>
-  )
+type GuideFact = { key: string; label: string; value: string }
+
+function guideFactsFromDeal(
+  deal: ReturnType<typeof buildLeadProfile>['deal'],
+): GuideFact[] {
+  const rows: GuideFact[] = []
+  if (deal.locationsCount != null) {
+    rows.push({
+      key: 'locations',
+      label: 'Locations',
+      value: String(deal.locationsCount),
+    })
+  } else if (deal.multiLocation) {
+    rows.push({ key: 'locations', label: 'Locations', value: 'Multi-location' })
+  }
+  if (deal.googleRating != null) {
+    rows.push({
+      key: 'reputation',
+      label: 'Reputation',
+      value:
+        deal.reviewCount != null
+          ? `${deal.googleRating.toFixed(1)}★ · ${deal.reviewCount} reviews`
+          : `${deal.googleRating.toFixed(1)}★`,
+    })
+  }
+  if (deal.licensedOrBonded || deal.bbbAccredited) {
+    rows.push({
+      key: 'license',
+      label: 'Licensed / bonded',
+      value:
+        [deal.licensesNote, deal.bbbAccredited ? 'BBB accredited' : null]
+          .filter(Boolean)
+          .join(' · ') || 'Yes',
+    })
+  }
+  if (deal.saleLanguageSnippet) {
+    rows.push({
+      key: 'sale',
+      label: 'Sale / retirement cue',
+      value: deal.saleLanguageSnippet,
+    })
+  }
+  if (deal.customerConcentration) {
+    rows.push({
+      key: 'concentration',
+      label: 'Customer concentration',
+      value: deal.customerConcentration,
+    })
+  }
+  if (deal.ownerReachLabel) {
+    rows.push({
+      key: 'reach',
+      label: 'Owner reach',
+      value: deal.ownerReachLabel,
+    })
+  }
+  return rows
 }
 
 export function LeadProfile({
@@ -56,14 +97,23 @@ export function LeadProfile({
   onEnrich: () => void
   onRunAutomation: () => void
 }) {
-  const profile =
-    item.profile ||
-    buildLeadProfile(item.lead, { enrichment, whyNow: item.whyNow })
+  const profile = buildLeadProfile(item.lead, {
+    enrichment,
+    whyNow: item.whyNow,
+    riskFlags: item.profile?.insights.riskFlags,
+  })
   const company = item.lead.company?.trim() || 'Untitled company'
-  const succ = profile.owner.succession
+  const facts = factsWithEnrichment(item.lead, enrichment)
+  const guideFacts = guideFactsFromDeal(profile.deal)
+  const dimmed = item.junk || !!item.duplicateOf
+  const scoreHint = item.scoreBreakdown?.length
+    ? `${item.scoreBreakdown.length} factors · fit ${item.score}/100`
+    : item.reasons.length
+      ? `${item.reasons.length} factors · fit ${item.score}/100`
+      : `Fit ${item.score}/100`
 
   return (
-    <div className="tab-view space-y-5">
+    <div className="tab-view space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button type="button" className="btn btn-ghost" onClick={onBack}>
           <ArrowLeft className="size-3.5" strokeWidth={1.75} />
@@ -71,158 +121,211 @@ export function LeadProfile({
         </button>
         <div className="flex flex-wrap items-center gap-2">
           <ExportPresetsMenu leads={[item]} label="Export lead" />
-          <button type="button" className="btn btn-ghost" disabled={enriching} onClick={onEnrich}>
-            <Zap className="size-3.5" strokeWidth={1.75} />
-            {enriching ? 'Enriching…' : 'Enrich from website'}
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={onRunAutomation}>
-            <Workflow className="size-3.5" strokeWidth={1.75} />
-            Run automation
-          </button>
-        </div>
-      </div>
-
-      <header className="panel flex flex-wrap items-start gap-4 px-5 py-5">
-        <CompanyAvatar company={company} website={item.lead.website} email={item.lead.email} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-bold tracking-[-0.03em] text-white">{company}</h2>
-            <TierBadge tier={item.tier} />
-            <StatusBadge item={item} />
-            <StageBadge stage={item.stage} />
-          </div>
-          <p className="mt-1 text-sm text-[var(--sq-text-secondary)]">
-            {item.lead.ownerName || '—'}
-            {item.lead.title ? ` · ${item.lead.title}` : ''}
-          </p>
-          {item.whyNow && (
-            <p className="mt-3 text-sm leading-relaxed text-[var(--sq-text-secondary)]">
-              <span className="font-semibold text-[#fbbf24]">Why now · </span>
-              {item.whyNow}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <p className="font-mono text-3xl font-bold tabular-nums text-white">
-            {item.score}
-            <span className="text-base text-[var(--sq-text-muted)]">/100</span>
-          </p>
           <StageSelect value={item.stage} onChange={onStageChange} />
         </div>
-      </header>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="panel px-5 py-4">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="icon-well icon-well-sm" style={{ background: 'rgba(96,165,250,0.14)', color: '#60a5fa' }}>
-              <Building2 strokeWidth={1.75} />
-            </span>
-            <h3 className="text-[13px] font-semibold text-white">Company</h3>
-          </div>
-          <FieldRow label="Industry" value={profile.company.industry.value} source={profile.company.industry.source} />
-          <FieldRow label="Location" value={profile.company.location.value} source={profile.company.location.source} />
-          <FieldRow label="Founded" value={profile.company.foundedYear.value} source={profile.company.foundedYear.source} />
-          <FieldRow label="Age" value={profile.company.ageYears.value != null ? `${profile.company.ageYears.value} yrs` : null} source={profile.company.ageYears.source} />
-          <FieldRow label="Revenue band" value={profile.company.revenueBand.value} source={profile.company.revenueBand.source} />
-          <FieldRow label="Employee band" value={profile.company.employeeBand.value} source={profile.company.employeeBand.source} />
-          <FieldRow label="Services" value={profile.company.services.value} source={profile.company.services.source} />
-          <FieldRow label="Website" value={profile.company.websiteStatus.value} source={profile.company.websiteStatus.source} />
-        </section>
-
-        <section className="panel px-5 py-4">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="icon-well icon-well-sm" style={{ background: 'rgba(167,139,250,0.14)', color: '#a78bfa' }}>
-              <UserRound strokeWidth={1.75} />
-            </span>
-            <h3 className="text-[13px] font-semibold text-white">Owner</h3>
-          </div>
-          <FieldRow label="Name" value={profile.owner.name.value} source={profile.owner.name.source} />
-          <FieldRow label="Role" value={profile.owner.role.value} source={profile.owner.role.source} />
-          <FieldRow label="Est. tenure" value={profile.owner.estimatedTenure.value} source={profile.owner.estimatedTenure.source} />
-          <FieldRow label="Contactability" value={profile.owner.contactability.value} />
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {succ.longTenure && (
-              <span className="badge" style={{ background: 'rgba(251,191,36,0.14)', color: '#fbbf24' }}>
-                Long tenure
-              </span>
-            )}
-            {succ.noVisibleSuccessor && (
-              <span className="badge" style={{ background: 'rgba(244,63,94,0.14)', color: '#f43f5e' }}>
-                No visible successor
-              </span>
-            )}
-            {succ.businessAgeOver15 && (
-              <span className="badge" style={{ background: 'rgba(96,165,250,0.14)', color: '#60a5fa' }}>
-                Age 15+ yrs
-              </span>
-            )}
-          </div>
-        </section>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="panel px-5 py-4">
-          <h3 className="mb-3 text-[13px] font-semibold text-white">Score breakdown</h3>
-          <ScoreBreakdown factors={item.scoreBreakdown} />
-          {profile.insights.riskFlags.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--sq-text-muted)]">
-                Risk flags
+      <div className="lead-sheet">
+        <article className="lead-card" data-open="true" data-dim={dimmed}>
+          <div className="lead-card-summary pointer-events-none">
+            <CompanyAvatar company={company} website={item.lead.website} email={item.lead.email} />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h2 className="truncate text-[15px] font-semibold tracking-[-0.025em] text-white">
+                  {company}
+                </h2>
+                <TierBadge tier={item.tier} />
+                <StageBadge stage={item.stage} />
+                <StatusBadge item={item} />
+                {item.lead.industry ? (
+                  <span className="truncate text-[12px] font-medium text-[var(--sq-text-muted)]">
+                    {item.lead.industry}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-0.5 truncate text-[13px] tracking-tight text-[var(--sq-text-secondary)]">
+                {[item.lead.ownerName, item.lead.title].filter(Boolean).join(' · ') ||
+                  'No contact on file'}
+                {item.lead.email ? (
+                  <span className="ml-2 font-mono text-[11px] text-[var(--sq-text-muted)]">
+                    {item.lead.email}
+                  </span>
+                ) : null}
               </p>
-              <ul className="space-y-1">
-                {profile.insights.riskFlags.map(flag => (
-                  <li key={flag} className="text-[13px] text-sq-danger">
-                    {flag}
-                  </li>
-                ))}
-              </ul>
             </div>
-          )}
-          {profile.insights.lastVerified && (
-            <p className="mt-3 text-[11px] text-[var(--sq-text-muted)]">
-              Last verified {new Date(profile.insights.lastVerified).toLocaleString()}
-            </p>
-          )}
-        </section>
+            <ScoreMeter score={item.score} />
+          </div>
 
-        <section className="panel px-5 py-4">
-          <h3 className="mb-3 text-[13px] font-semibold text-white">Field confidence</h3>
-          {enrichment ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ConfidenceMeter label="Email" value={enrichment.email.value} confidence={enrichment.email.confidence} />
-              <ConfidenceMeter label="Phone" value={enrichment.phone.value} confidence={enrichment.phone.confidence} />
-              <ConfidenceMeter label="Founded" value={enrichment.yearFounded.value} confidence={enrichment.yearFounded.confidence} />
-              <ConfidenceMeter label="Services" value={enrichment.services.value} confidence={enrichment.services.confidence} />
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--sq-text-muted)]">Enrich to see confidence meters.</p>
-          )}
-        </section>
-      </div>
-
-      <section className="panel px-5 py-4">
-        <h3 className="mb-3 text-[13px] font-semibold text-white">Activity</h3>
-        {activities.length === 0 ? (
-          <p className="text-sm text-[var(--sq-text-muted)]">No activity logged yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {activities.map((a, i) => (
-              <li
-                key={a.id || `${a.kind}-${i}`}
-                className="flex items-start justify-between gap-3 border-b border-[var(--sq-border)] py-2 last:border-0"
-              >
-                <div>
-                  <p className="text-[13px] text-white">{a.summary}</p>
-                  <p className="text-[11px] text-[var(--sq-text-muted)]">{a.kind}</p>
+          <div className="lead-card-panel" style={{ gridTemplateRows: '1fr' }}>
+            <div className="lead-card-panel-inner">
+              <div className="space-y-3 border-t border-[var(--sq-border)] px-5 pb-5 pt-4 sm:px-6">
+                <div className="lead-panel-block">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <p
+                      className="fit-score shrink-0 font-mono text-[1.35rem] font-bold tabular-nums tracking-tight text-white"
+                      aria-label={`Fit score ${item.score} of 100`}
+                    >
+                      {item.score}
+                      <span className="text-[0.85em] font-semibold text-[var(--sq-text-muted)]">
+                        /100
+                      </span>
+                    </p>
+                    <TierBadge tier={item.tier} />
+                    <StageBadge stage={item.stage} />
+                    <StatusBadge item={item} />
+                  </div>
+                  {item.junkReasons.length > 0 && (
+                    <p className="mt-3 text-sm font-medium text-sq-danger">
+                      {item.junkReasons.join(' · ')}
+                    </p>
+                  )}
                 </div>
-                <time className="shrink-0 text-[11px] text-[var(--sq-text-muted)]">
-                  {new Date(a.createdAt).toLocaleString()}
-                </time>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+
+                <div className="lead-panel-block space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <button
+                      type="button"
+                      className="btn btn-ghost w-full sm:w-auto"
+                      disabled={enriching}
+                      onClick={onEnrich}
+                    >
+                      <Zap className="size-3.5" strokeWidth={1.75} />
+                      {enriching ? 'Filling in…' : 'Fill from website'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost w-full sm:w-auto"
+                      onClick={onRunAutomation}
+                    >
+                      <Workflow className="size-3.5" strokeWidth={1.75} />
+                      Run automation
+                    </button>
+                  </div>
+                  {enrichment && (
+                    <p className="text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
+                      <span className="text-[var(--sq-text-secondary)]">% sure</span> = how reliable
+                      that field looks (not the fit score).
+                    </p>
+                  )}
+                  {facts.length > 0 && (
+                    <dl className="fact-grid">
+                      {facts.map(f => {
+                        const Icon = f.icon
+                        const pct =
+                          f.confidence != null && f.confidence > 0
+                            ? Math.round(f.confidence * 100)
+                            : null
+                        return (
+                          <div key={f.key} className="fact-row">
+                            <span
+                              className="icon-well icon-well-sm"
+                              style={{ background: `${f.color}22`, color: f.color }}
+                              aria-hidden
+                            >
+                              <Icon strokeWidth={1.75} />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="fact-row-head">
+                                <dt>{f.label}</dt>
+                                {pct != null ? (
+                                  <span className="fact-conf" title="How reliable this field looks">
+                                    {pct}% sure
+                                  </span>
+                                ) : null}
+                              </div>
+                              <dd>
+                                <FactScrollValue value={f.value} />
+                              </dd>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </dl>
+                  )}
+                </div>
+
+                {item.whyNow && (
+                  <div className="lead-panel-block">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
+                      Why now
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--sq-text-secondary)]">
+                      {item.whyNow}
+                    </p>
+                  </div>
+                )}
+
+                {(guideFacts.length > 0 || profile.deal.badges.length > 0) && (
+                  <div className="lead-panel-block space-y-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
+                        Buying guide
+                      </p>
+                      <p className="mt-1 text-[11px] text-[var(--sq-text-muted)]">
+                        ETA signals for outreach — from CSV / site cues, not legal advice.
+                      </p>
+                    </div>
+                    {guideFacts.length > 0 && (
+                      <dl className="fact-grid">
+                        {guideFacts.map(f => (
+                          <div key={f.key} className="fact-row fact-row--text">
+                            <div className="min-w-0 flex-1">
+                              <div className="fact-row-head">
+                                <dt>{f.label}</dt>
+                              </div>
+                              <dd>
+                                <FactScrollValue value={f.value} />
+                              </dd>
+                            </div>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    {profile.deal.badges.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {profile.deal.badges.map(badge => (
+                          <span
+                            key={badge}
+                            className="badge"
+                            style={{ background: 'rgba(255,255,255,0.06)', color: '#d4d4d8' }}
+                          >
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!dimmed && (item.scoreBreakdown?.length || item.reasons.length > 0) && (
+                  <CollapsibleSection title="Score reasons" hint={scoreHint} defaultOpen={false}>
+                    {item.scoreBreakdown?.length ? (
+                      <ScoreBreakdown factors={item.scoreBreakdown} max={12} />
+                    ) : (
+                      <ReasonChips reasons={item.reasons} max={12} />
+                    )}
+                  </CollapsibleSection>
+                )}
+
+                <CollapsibleSection
+                  title="Recent history"
+                  hint={
+                    activities.length
+                      ? `${activities.length} event${activities.length === 1 ? '' : 's'}`
+                      : 'No interactions yet'
+                  }
+                  defaultOpen={false}
+                >
+                  <LeadActivityTimeline activities={activities} max={6} />
+                  <div className="mt-4 border-t border-[var(--sq-border)] pt-4">
+                    <LeadCrmConnectStrip lead={item} />
+                  </div>
+                </CollapsibleSection>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
   )
 }

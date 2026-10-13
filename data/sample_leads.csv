@@ -1,11 +1,11 @@
-company,website,industry,city,state,country,employees,revenue,ownerName,title,email,phone,linkedin,yearFounded
-Northwind HVAC LLC,northwindhvac.example,HVAC,Columbus,OH,US,35,$6M,Dana Reyes,Owner,dana@northwindhvac.example,614-555-0101,linkedin.com/in/dana-reyes-nw,1995
-Northwind HVAC,https://www.northwindhvac.example,HVAC Services,Columbus,OH,US,35,$6M,Dana Reyes,Owner,dana@northwindhvac.example,(614) 555-0101,,1995
-Bluegate Plumbing Co,bluegateplumbing.example,Plumbing,Austin,TX,US,18,$2.4M,Sam Ortiz,President,info@bluegateplumbing.example,512-555-0144,linkedin.com/in/sam-ortiz-bg,2008
-Blue Gate Plumbing,bluegateplumbing.example,Plumbing,Austin,TX,US,18,$2.4M,Sam Ortiz Jr,Owner,sam.jr@bluegateplumbing.example,512-555-0144,,2008
-Summit Precision Manufacturing,summitprecision.example,Manufacturing,Dayton,OH,US,120,$22M,Lee Park,CEO,lee.park@summitprecision.example,937-555-0190,linkedin.com/in/lee-park-sp,1987
-Summit Precision Mfg,summitprecision.example,Contract Manufacturing,Dayton,OH,US,120,$22M,Lee Park,Founder,lee.park@summitprecision.example,937-555-0190,linkedin.com/in/lee-park-sp,1987
-Ghost Leads Inc,,Consulting,,,US,,,,,,,,
-CloudNova SaaS,cloudnova.example,Software,San Francisco,CA,US,4200,$900M,Alex Kim,CEO,alex@cloudnova.example,415-555-0110,linkedin.com/in/alex-kim-cn,2019
-Broken Email Logistics,brokenlogistics.example,Logistics,Detroit,MI,US,60,$9M,Chris Lo,Owner,chris@,313-555-0188,linkedin.com/in/chris-lo-bl,1999
-VaporWare Analytics,vaporware.example,Software,Chicago,IL,US,850,$120M,Jordan Lee,Founder,jordan@vaporware.example,312-555-0199,,2020
+company,website,industry,city,state,country,employees,revenue,ownerName,title,email,phone,linkedin,yearFounded,locations,googleRating,reviewCount,licenses,bonding,bbb,customerConcentration,saleSignal,siteSnippet
+Northwind HVAC LLC,northwindhvac.example,HVAC,Columbus,OH,US,35,$6M,Dana Reyes,Owner,dana@northwindhvac.example,614-555-0101,linkedin.com/in/dana-reyes-nw,1995,3,4.7,186,OH HVAC #44192,yes,yes,,Owner exploring succession after 30 years,Family-owned HVAC serving Columbus since 1995. 3 locations. Licensed and bonded.
+Northwind HVAC,https://www.northwindhvac.example,HVAC Services,Columbus,OH,US,35,$6M,Dana Reyes,Owner,dana@northwindhvac.example,(614) 555-0101,,1995,3,4.7,186,OH HVAC #44192,yes,yes,,Owner exploring succession after 30 years,Family-owned HVAC serving Columbus since 1995. 3 locations. Licensed and bonded.
+Bluegate Plumbing Co,bluegateplumbing.example,Plumbing,Austin,TX,US,18,$2.4M,Sam Ortiz,President,info@bluegateplumbing.example,512-555-0144,linkedin.com/in/sam-ortiz-bg,2008,1,4.4,92,TX Master Plumber,yes,no,,,Residential plumbing — Austin metro.
+Blue Gate Plumbing,bluegateplumbing.example,Plumbing,Austin,TX,US,18,$2.4M,Sam Ortiz Jr,Owner,sam.jr@bluegateplumbing.example,512-555-0144,,2008,1,4.4,92,TX Master Plumber,yes,no,,,Same shop — Jr now listed as owner.
+Summit Precision Manufacturing,summitprecision.example,Manufacturing,Dayton,OH,US,120,$22M,Lee Park,CEO,lee.park@summitprecision.example,937-555-0190,linkedin.com/in/lee-park-sp,1987,2,4.2,41,ISO 9001,yes,yes,Top customer ~28% of revenue (demo note),,Precision machining — Dayton. 2 plants.
+Summit Precision Mfg,summitprecision.example,Contract Manufacturing,Dayton,OH,US,120,$22M,Lee Park,Founder,lee.park@summitprecision.example,937-555-0190,linkedin.com/in/lee-park-sp,1987,2,4.2,41,ISO 9001,yes,yes,Top customer ~28% of revenue (demo note),,Precision machining — Dayton. 2 plants.
+Ghost Leads Inc,,Consulting,,,US,,,,,,,,,,,,,,,,,
+CloudNova SaaS,cloudnova.example,Software,San Francisco,CA,US,4200,$900M,Alex Kim,CEO,alex@cloudnova.example,415-555-0110,linkedin.com/in/alex-kim-cn,2019,6,4.1,1200,,no,no,Enterprise concentration high,,Growth SaaS — outside ETA buy box.
+Broken Email Logistics,brokenlogistics.example,Logistics,Detroit,MI,US,60,$9M,Chris Lo,Owner,chris@,313-555-0188,linkedin.com/in/chris-lo-bl,1999,3,4.6,76,Licensed,no,yes,,,Demo site note for Broken Email Logistics — fictional.
+VaporWare Analytics,vaporware.example,Software,Chicago,IL,US,850,$120M,Jordan Lee,Founder,jordan@vaporware.example,312-555-0199,,2020,1,4.7,83,,yes,no,,,Demo site note for VaporWare Analytics — fictional.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildFunnelReport, countReachedStage } from './funnel'
+import { buildFunnelReport, buildReportActions, countReachedStage } from './funnel'
 import type { ScoredLead } from './scoring'
 
 function lead(partial: Partial<ScoredLead> & { id: string; stage?: string }): ScoredLead {
@@ -40,5 +40,15 @@ describe('funnel math', () => {
     expect(report.steps[2].conversionFromPrev).not.toBeNull()
     expect(report.creditsSaved.total).toBe(6)
     expect(report.byTier.some(t => t.key === 'A')).toBe(true)
+    expect(report.cleanTotal).toBe(6)
+    expect(report.tierA).toBe(5)
+    expect(report.inMotion).toBeGreaterThanOrEqual(4)
+    expect(report.buying).toBeDefined()
+  })
+
+  it('lists plain-english next actions', () => {
+    const actions = buildReportActions(leads)
+    expect(actions.length).toBeGreaterThan(0)
+    expect(actions.some(a => a.title.toLowerCase().includes('a-tier'))).toBe(true)
   })
 })
