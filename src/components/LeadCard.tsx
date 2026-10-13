@@ -180,7 +180,7 @@ export function LeadCard({
                                 </span>
                               ) : null}
                             </div>
-                            <dd className={f.key === 'services' ? 'line-clamp-3' : undefined}>{f.value}</dd>
+                            <dd title={f.value}>{f.value}</dd>
                           </div>
                         </div>
                       )
