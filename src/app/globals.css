@@ -568,7 +568,14 @@ button.kpi-stat-card:active {
   align-items: flex-start;
   gap: 0.75rem;
   min-width: 0;
-  padding: 0.7rem 0;
+  padding: 0.7rem 0.35rem 0.7rem 0;
+}
+/* Long fields get two columns so email / LinkedIn / services can breathe */
+@media (min-width: 720px) {
+  .fact-row--wide {
+    grid-column: span 2;
+    padding-right: 0.75rem;
+  }
 }
 .fact-row-head {
   display: flex;
@@ -613,6 +620,15 @@ button.kpi-stat-card:active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.fact-row--wide dd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-overflow: ellipsis;
 }
 
 /* Open-card fit: bigger mono number with a soft highlight, no ring */
