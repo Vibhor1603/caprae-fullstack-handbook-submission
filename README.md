@@ -1,76 +1,125 @@
 # Caprae Capital — Full Stack Handbook Submission
 
-**Deal Sourcing Autopilot** — an add-on for [SaaSquatch Leads](https://www.saasquatchleads.com/).
+**DealFit** is an add-on for [SaaSquatch Leads](https://www.saasquatchleads.com/), aimed at ETA / search-fund buyers (Caprae’s audience).
 
-SaaSquatch already scrapes and exports leads. This app sits **after the CSV export**: clean the list, score which companies fit an acquisition search, enrich only the good ones, run deal templates toward CRM, and track the pipeline — without sending email for the user.
-
-Sample / demo CSVs use fictional companies (`.example` domains).
+SaaSquatch scrapes and exports leads. DealFit takes that CSV next: clean the list, score acquisition fit, show buying-guide signals (geo, size, tenure, owner, why-now), fill gaps from websites, run deal workflows, and export to CRM.
 
 **Live demo:** [https://caprae-deal-sourcing.vercel.app](https://caprae-deal-sourcing.vercel.app)
 
-## What we built
+---
 
-1. **Today** — Daily command view: new A-tier matches, tier changes, trigger status, automation output (sent email / CRM sync / notify), follow-ups, compact funnel. Deep-links into Leads, Automate, Runs, Report.
-2. **Leads** — Upload a SaaSquatch-style CSV (or load ~60-row demo). Deduplicate, filter junk, score A / B / C with exact point breakdown and “why now”. Shared filters (tier, industry, state, stage, confidence). Open a **Profile** dossier (company + owner intelligence, succession signals, activity).
-3. **Pipeline** — Stages: New → Enriched → Contacted → Replied → Owner call → LOI → Closed / Lost. Manual changes and workflow `move_stage` actions; stage changes can fire automation.
-4. **Automate** — React Flow canvas with three one-click templates:
-   - A-tier owner intro (enrich → confidence → draft → Contacted → CRM)
-   - No-reply follow-up (Contacted ≥5 days → draft + notify)
-   - Weekly pipeline digest (schedule → report + notify)
-5. **Runs** — History of each workflow execution and per-step results.
-6. **Report** — Funnel with conversion %, breakdowns by tier / industry / state, enrichment credits saved, workflow impact. Date range + shared filters.
-7. **Export presets** — HubSpot, Salesforce, Pipedrive, Google Sheets, generic CSV with mapping preview.
-
-## Architecture
-
-```
-CSV / demo → triage (fuzzy+domain dedupe, junk, score + breakdown, profile)
-          → Profile (source of truth: company, owner, stage, activity)
-          → Workflows / templates → Runs + ReportEvent
-          → Today / Funnel report / CRM export presets
-```
-
-| Area | Choice |
-| --- | --- |
-| App | Next.js 15, TypeScript, Tailwind v4 |
-| Database | Prisma + Supabase Postgres (pooler `DATABASE_URL` + `DIRECT_URL`) |
-| Caching | Enrichment results cached ~7 days in Postgres (no Redis) |
-| Hosting | Vercel + Supabase |
-| Tests | Vitest — scoring breakdown, stages, templates, funnel, exports |
-
-Core logic: `src/lib/` (`scoring.ts`, `enrichment.ts`, `workflow.ts`, `pipeline.ts`, `profile.ts`, `funnel.ts`, `exportPresets.ts`, `templates.ts`). UI: `src/components/`. APIs: `src/app/api/`.
-
-## How to run
+## Setup
 
 ```bash
 npm install
-cp .env.example .env   # paste Supabase DATABASE_URL + DIRECT_URL
-npm run db:push        # or apply prisma/migrations/20261013_v2_pipeline/migration.sql
-npm run db:seed        # seed deal templates
-npm run dev            # http://localhost:3000
+cp .env.example .env
 ```
+
+In `.env`, set Supabase Postgres:
+
+- `DATABASE_URL` — pooler connection string  
+- `DIRECT_URL` — direct connection string  
+
+Then:
+
+```bash
+npm run db:push          # or run prisma/migrations/20261013_v2_pipeline/migration.sql in Supabase
+npm run db:seed          # seeds the three deal templates
+npm run dev              # http://localhost:3000
+```
+
+Useful checks:
 
 ```bash
 npm test
 npm run build && PORT=3001 npm run start
 ```
 
-If `db:push` fails with ownership errors on Supabase, run the SQL in `prisma/migrations/20261013_v2_pipeline/migration.sql` as the table owner in the SQL editor. The UI demo still works fully from session + demo CSV without new columns.
+If `db:push` fails on table ownership, run the migration SQL as the table owner in the Supabase SQL editor. Scoring, demo CSV, and most of the UI still work from browser session without new DB columns. Automate history and Runs need Postgres.
 
-## Try the demo
+---
 
-1. Click **Use demo data** (or open **Today** → Load demo data)
-2. Browse **Today** — A-tier, triggers, drafts, funnel snapshot
-3. Open a lead → **Open profile** — company/owner dossier, score breakdown, change stage
-4. **Automate** — three templates on the canvas; edit & Save
-5. **Runs** and **Report** reflect the same data
-6. **Export** with a CRM preset (preview mapping first)
+## Demo dataset
+
+All sample companies are **fictional**. Domains use `.example` so enrich does not hit the public web.
+
+| File | Rows | Use |
+| --- | --- | --- |
+| `public/demo_leads.csv` | ~60 | Main demo (**Use demo data**) |
+| `public/sample_leads.csv` | ~10 | Smaller fallback |
+| `data/*.csv` | same idea | Copies for local reference |
+
+Columns include company, website, industry, location, employees, revenue, owner, title, email, phone, LinkedIn, and year founded. The list mixes strong A-tier fits, weaker B/C leads, and a few junk or duplicate rows so scoring and filters are easy to demo.
+
+**Use demo data** loads the CSV, scores it, fills stages for the demo story, enriches one A-tier lead, and fires schedule / template runs when workflows are seeded.
+
+---
+
+## Architecture
+
+```
+CSV or demo
+  → clean + score (dedupe, junk filter, A/B/C + reasons)
+  → lead profile (company, owner, stage, activity)
+  → workflows (templates on the canvas)
+  → runs + report events
+  → Today, Report, CRM export
+```
+
+| Path | Role |
+| --- | --- |
+| `src/lib/` | Pure logic: scoring, enrich, pipeline, workflows, funnel, exports |
+| `src/components/` | UI |
+| `src/app/api/` | Score, enrich, workflows, runs, report |
+| `prisma/` | Schema and migrations |
+
+Core scoring lives in `src/lib/scoring.ts` and is covered by `npm test`. Keep that module free of UI and network side effects.
+
+---
+
+## Stack (and why)
+
+| Piece | Choice | Why |
+| --- | --- | --- |
+| App | Next.js 15, TypeScript, Tailwind | One repo for UI and APIs; fast to ship for a timed take-home |
+| Database | Prisma + Supabase Postgres | Persist workflows, runs, and report events; pooler + direct URLs for serverless |
+| Cache | Enrich rows in Postgres (~7 days) | Avoid Redis; enough for demo rate limits and repeat enrich |
+| Canvas | React Flow | Clear visual story for deal templates |
+| Host | Vercel + Supabase | Matches a small full-stack production shape |
+| Tests | Vitest | Fast unit tests for scoring, stages, templates, funnel, exports |
+
+---
+
+## What you can do in the app
+
+1. **Today** — Best matches, score changes, workflow runs, what automation did, follow-ups, short stage snapshot.  
+2. **Leads** — Upload CSV or load demo. Clean, score, filter, expand a lead to fill from website, see score reasons, history, and CRM export.  
+3. **Stages** — New → Researched → Contacted → Replied → Call booked → LOI → Closed / Lost.  
+4. **Automate** — Three templates: A-tier intro, no-reply follow-up, weekly digest. Dry run previews; live runs send on the automation path (demo send is simulated, no real SMTP).  
+5. **Runs** — Each workflow run and step results.  
+6. **Report** — Deal stages and conversion for the current list.  
+7. **Export** — HubSpot, Salesforce, Pipedrive, Sheets, or generic CSV.
+
+---
+
+## Quick walkthrough
+
+1. Click **Use demo data**.  
+2. Open **Today**, then expand a lead on **Leads**.  
+3. **Fill from website** on an A-tier lead (demo path for `.example`).  
+4. Open **Automate**, pick a template, Save.  
+5. Check **Runs** and **Report**.  
+6. Export with a CRM preset (preview mapping first).
+
+---
 
 ## Ethics
 
-- Honours `robots.txt`, rate-limits live crawls
-- **Dry run** on Automate previews email; **live workflow runs** dispatch email/notify through the automation path (demo uses simulated send — no real SMTP)
-- Fictional `.example` domains use demo enrichment (no network)
+- Honours `robots.txt` and rate-limits live crawls.  
+- Fictional `.example` data uses offline demo enrich (no network).  
+- Dry run on Automate is preview only. Live runs use the automation path with simulated send in this demo.
+
+---
 
 ## Author
 
