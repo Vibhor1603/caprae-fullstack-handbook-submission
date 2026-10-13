@@ -12,7 +12,7 @@ export function ReasonChips({ reasons, max = 4 }: { reasons: string[]; max?: num
   const rest = reasons.length - shown.length
 
   return (
-    <ul className="grid gap-1.5 sm:grid-cols-2">
+    <ul className="grid grid-cols-1 gap-2">
       {shown.map(r => {
         const negative = r.trim().startsWith('-')
         return (

@@ -7,9 +7,13 @@ import { contactLine, factsFromLead } from '@/lib/leadDisplay'
 import { CompanyAvatar } from '@/components/CompanyAvatar'
 import { ConfidenceMeter } from '@/components/ConfidenceMeter'
 import { ReasonChips } from '@/components/ReasonChips'
+import { ScoreBreakdown } from '@/components/ScoreBreakdown'
 import { ScoreMeter } from '@/components/ScoreMeter'
 import { StatusBadge, TierBadge } from '@/components/StatusBadge'
 import { StageBadge } from '@/components/StageSelect'
+import { LeadActivityTimeline } from '@/components/LeadActivityTimeline'
+import { LeadCrmConnectStrip } from '@/components/LeadCrmConnectStrip'
+import type { LeadActivityItem } from '@/lib/profile'
 
 type Props = {
   item: ScoredLead
@@ -20,6 +24,7 @@ type Props = {
   enriching?: boolean
   onEnrich?: () => void
   onRunAutomation?: () => void
+  activities?: LeadActivityItem[]
 }
 
 function statusHint(l: ScoredLead) {
@@ -37,6 +42,7 @@ export function LeadCard({
   enriching,
   onEnrich,
   onRunAutomation,
+  activities = [],
 }: Props) {
   const { lead, score, tier, reasons, junk, duplicateOf } = item
   const dimmed = junk || !!duplicateOf
@@ -85,103 +91,107 @@ export function LeadCard({
 
       <div className="lead-card-panel">
         <div className="lead-card-panel-inner">
-          <div className="space-y-5 border-t border-[var(--sq-border)] px-5 pb-5 pt-4 sm:px-6">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p
-                className="fit-score shrink-0 font-mono text-[1.35rem] font-bold tabular-nums tracking-tight text-white"
-                aria-label={`Fit score ${score} of 100`}
-              >
-                {score}
-                <span className="text-[0.85em] font-semibold text-[var(--sq-text-muted)]">/100</span>
-              </p>
-              <TierBadge tier={tier} />
-              <StageBadge stage={item.stage} />
-              <StatusBadge item={item} />
-              <span className="text-[11px] font-medium text-[var(--sq-text-muted)]">{item.id}</span>
+          <div className="space-y-4 border-t border-[var(--sq-border)] px-5 pb-5 pt-4 sm:px-6">
+            <div className="lead-panel-block">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <p
+                  className="fit-score shrink-0 font-mono text-[1.35rem] font-bold tabular-nums tracking-tight text-white"
+                  aria-label={`Fit score ${score} of 100`}
+                >
+                  {score}
+                  <span className="text-[0.85em] font-semibold text-[var(--sq-text-muted)]">/100</span>
+                </p>
+                <TierBadge tier={tier} />
+                <StageBadge stage={item.stage} />
+                <StatusBadge item={item} />
+              </div>
+              {item.junkReasons.length > 0 && (
+                <p className="mt-3 text-sm font-medium text-sq-danger">{item.junkReasons.join(' · ')}</p>
+              )}
             </div>
 
-            {item.junkReasons.length > 0 && (
-              <p className="text-sm font-medium text-sq-danger">{item.junkReasons.join(' · ')}</p>
-            )}
-
             {facts.length > 0 && (
-              <dl className="fact-grid">
-                {facts.map(f => {
-                  const Icon = f.icon
-                  return (
-                    <div key={f.key} className="fact-row">
-                      <span
-                        className="icon-well icon-well-sm"
-                        style={{ background: `${f.color}22`, color: f.color }}
-                        aria-hidden
-                      >
-                        <Icon strokeWidth={1.75} />
-                      </span>
-                      <div className="min-w-0">
-                        <dt>{f.label}</dt>
-                        <dd>{f.value}</dd>
+              <div className="lead-panel-block">
+                <dl className="fact-grid">
+                  {facts.map(f => {
+                    const Icon = f.icon
+                    return (
+                      <div key={f.key} className="fact-row">
+                        <span
+                          className="icon-well icon-well-sm"
+                          style={{ background: `${f.color}22`, color: f.color }}
+                          aria-hidden
+                        >
+                          <Icon strokeWidth={1.75} />
+                        </span>
+                        <div className="min-w-0">
+                          <dt>{f.label}</dt>
+                          <dd>{f.value}</dd>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </dl>
-            )}
-
-            {item.whyNow && (
-              <p className="text-sm leading-relaxed text-[var(--sq-text-secondary)]">
-                <span className="font-semibold text-[#fbbf24]">Why now · </span>
-                {item.whyNow}
-              </p>
-            )}
-
-            {item.tags?.length > 0 && (
-              <p className="text-xs text-[var(--sq-text-muted)]">
-                Tags: {item.tags.join(', ')}
-              </p>
-            )}
-
-            {!dimmed && reasons.length > 0 && (
-              <div>
-                <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
-                  Why this score
-                </p>
-                <ReasonChips reasons={reasons} max={12} />
+                    )
+                  })}
+                </dl>
               </div>
             )}
 
-            {(onEnrich || onRunAutomation) && (
-              <div className="space-y-4 border-t border-[var(--sq-border)] pt-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  {onEnrich && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={enriching}
-                      onClick={e => {
-                        e.stopPropagation()
-                        onEnrich()
-                      }}
-                    >
-                      <Zap className="size-3.5" strokeWidth={1.75} />
-                      {enriching ? 'Enriching…' : 'Enrich from website'}
-                    </button>
-                  )}
-                  {onRunAutomation && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      onClick={e => {
-                        e.stopPropagation()
-                        onRunAutomation()
-                      }}
-                    >
-                      <Workflow className="size-3.5" strokeWidth={1.75} />
-                      Run automation
-                    </button>
-                  )}
-                </div>
+            {item.whyNow && (
+              <div className="lead-panel-block">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
+                  Why now
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--sq-text-secondary)]">{item.whyNow}</p>
+              </div>
+            )}
+
+            {!dimmed && (item.scoreBreakdown?.length || reasons.length > 0) && (
+              <div className="lead-panel-block">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
+                  Why this score
+                </p>
+                {item.scoreBreakdown?.length ? (
+                  <ScoreBreakdown factors={item.scoreBreakdown} max={12} />
+                ) : (
+                  <ReasonChips reasons={reasons} max={12} />
+                )}
+              </div>
+            )}
+
+            {(onEnrich || onRunAutomation || enrichment) && (
+              <div className="lead-panel-block space-y-4">
+                {(onEnrich || onRunAutomation) && (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {onEnrich && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost w-full sm:w-auto"
+                        disabled={enriching}
+                        onClick={e => {
+                          e.stopPropagation()
+                          onEnrich()
+                        }}
+                      >
+                        <Zap className="size-3.5" strokeWidth={1.75} />
+                        {enriching ? 'Enriching…' : 'Enrich from website'}
+                      </button>
+                    )}
+                    {onRunAutomation && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost w-full sm:w-auto"
+                        onClick={e => {
+                          e.stopPropagation()
+                          onRunAutomation()
+                        }}
+                      >
+                        <Workflow className="size-3.5" strokeWidth={1.75} />
+                        Run automation
+                      </button>
+                    )}
+                  </div>
+                )}
                 {enrichment && (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <ConfidenceMeter
                       label="Email"
                       value={enrichment.email.value}
@@ -206,6 +216,16 @@ export function LeadCard({
                 )}
               </div>
             )}
+
+            <div className="lead-panel-block space-y-4">
+              <div>
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
+                  Recent history
+                </p>
+                <LeadActivityTimeline activities={activities} max={6} />
+              </div>
+              <LeadCrmConnectStrip lead={item} />
+            </div>
           </div>
         </div>
       </div>

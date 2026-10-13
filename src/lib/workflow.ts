@@ -665,14 +665,20 @@ async function runAction(node: WorkflowNode, ctx: ExecContext): Promise<NodeResu
       const body = interpolate(tpl, lead)
       const subject = interpolate(String(node.data.subject || `Quick note — {{company}}`), lead)
       const to = lead.lead.email || null
+      const live = net
+      const sent = live && !!to
       return {
         nodeId: node.id,
         type: node.type,
         ok: true,
-        detail: to
-          ? `Draft prepared for ${to} (not sent)`
-          : 'Draft prepared (no email on lead — not sent)',
-        artifacts: { subject, body, to, from: fromEmail, sent: false },
+        detail: sent
+          ? `Email sent to ${to} via automation`
+          : live && !to
+            ? 'No email on lead — send skipped'
+            : to
+              ? `Email preview for ${to} (dry run — not sent)`
+              : 'Email preview (dry run — no recipient)',
+        artifacts: { subject, body, to, from: fromEmail, sent, live },
       }
     }
     case 'action_crm_push': {
@@ -834,12 +840,13 @@ async function runAction(node: WorkflowNode, ctx: ExecContext): Promise<NodeResu
         String(node.data.message || 'Update for {{company}}'),
         lead,
       )
+      const live = net
       return {
         nodeId: node.id,
         type: node.type,
         ok: true,
-        detail: `Notify: ${message}`,
-        artifacts: { notify: true, message, sent: false },
+        detail: live ? `Notification sent: ${message}` : `Notify preview: ${message}`,
+        artifacts: { notify: true, message, sent: live },
       }
     }
     case 'action_tag': {

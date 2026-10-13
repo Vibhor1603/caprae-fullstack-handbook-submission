@@ -32,7 +32,7 @@ export const KIND_META: Record<NodeKind, KindMeta> = {
   trigger: { label: 'Trigger', tone: '#60a5fa', group: 'trigger', Icon: Zap },
   condition: { label: 'Condition', tone: '#fbbf24', group: 'condition', Icon: Filter },
   action_enrich: { label: 'Enrich', tone: '#a78bfa', group: 'action', Icon: Sparkles },
-  action_draft_email: { label: 'Draft email', tone: '#4ade80', group: 'action', Icon: Mail },
+  action_draft_email: { label: 'Send email', tone: '#fbbf24', group: 'action', Icon: Mail },
   action_move_stage: { label: 'Move stage', tone: '#f472b6', group: 'action', Icon: ArrowRightLeft },
   action_crm_push: { label: 'CRM / Sheets', tone: '#34d399', group: 'action', Icon: Database },
   action_notify: { label: 'Notify', tone: '#fb923c', group: 'action', Icon: Bell },

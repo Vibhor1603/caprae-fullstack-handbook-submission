@@ -10,7 +10,7 @@ Sample / demo CSVs use fictional companies (`.example` domains).
 
 ## What we built
 
-1. **Today** — Daily command view: new A-tier matches, tier changes, trigger status, drafts/CRM waiting, follow-ups, compact funnel. Deep-links into Profile, Automate, Runs, Report.
+1. **Today** — Daily command view: new A-tier matches, tier changes, trigger status, automation output (sent email / CRM sync / notify), follow-ups, compact funnel. Deep-links into Leads, Automate, Runs, Report.
 2. **Leads** — Upload a SaaSquatch-style CSV (or load ~60-row demo). Deduplicate, filter junk, score A / B / C with exact point breakdown and “why now”. Shared filters (tier, industry, state, stage, confidence). Open a **Profile** dossier (company + owner intelligence, succession signals, activity).
 3. **Pipeline** — Stages: New → Enriched → Contacted → Replied → Owner call → LOI → Closed / Lost. Manual changes and workflow `move_stage` actions; stage changes can fire automation.
 4. **Automate** — React Flow canvas with three one-click templates:
@@ -69,7 +69,7 @@ If `db:push` fails with ownership errors on Supabase, run the SQL in `prisma/mig
 ## Ethics
 
 - Honours `robots.txt`, rate-limits live crawls
-- Draft emails only — **never auto-send**
+- **Dry run** on Automate previews email; **live workflow runs** dispatch email/notify through the automation path (demo uses simulated send — no real SMTP)
 - Fictional `.example` domains use demo enrichment (no network)
 
 ## Author

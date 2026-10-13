@@ -37,8 +37,8 @@ async function recordReportEvents(
       await prisma.reportEvent.create({
         data: {
           kind: 'crm_push',
-          summary: `CRM push prepared for ${company}`,
-          payload: JSON.stringify(result.artifacts || {}),
+          summary: String(result.detail || `CRM sync · ${company}`),
+          payload: JSON.stringify({ ...result.artifacts, company, leadId: lead.id, workflowId }),
         },
       })
 
@@ -62,16 +62,23 @@ async function recordReportEvents(
     }
 
     if (result.type === 'action_draft_email') {
-      const to = result.artifacts?.to ? String(result.artifacts.to) : 'unknown'
+      const to = result.artifacts?.to ? String(result.artifacts.to) : null
+      const subject = result.artifacts?.subject ? String(result.artifacts.subject) : 'Outbound email'
+      const sent = result.artifacts?.sent === true
       await prisma.reportEvent.create({
         data: {
-          kind: 'email_draft',
-          summary: `Draft prepared for ${to} · ${company} (not sent)`,
+          kind: sent ? 'email_sent' : 'email_draft',
+          summary: sent
+            ? `Email sent · ${subject} · ${company}`
+            : `Email preview · ${company}${to ? ` · ${to}` : ''}`,
           payload: JSON.stringify({
             to: result.artifacts?.to,
             from: result.artifacts?.from,
             subject: result.artifacts?.subject,
-            sent: false,
+            sent,
+            company,
+            leadId: lead.id,
+            workflowId,
           }),
         },
       })

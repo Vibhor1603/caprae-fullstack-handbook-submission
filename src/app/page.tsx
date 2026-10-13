@@ -23,7 +23,17 @@ import { SummaryCards } from '@/components/SummaryCards'
 import { LeadCard } from '@/components/LeadCard'
 import { RunsDashboard } from '@/components/RunsDashboard'
 import { FunnelReport } from '@/components/FunnelReport'
-import { TodayBoard, type DraftLite, type RunLite } from '@/components/TodayBoard'
+import { TodayBoard, type RunLite } from '@/components/TodayBoard'
+import {
+  isAutomationFeedKind,
+  toAutomationFeedItem,
+  type AutomationFeedItem,
+} from '@/lib/todayFeed'
+import {
+  activityFromNodeResult,
+  activityFromReportEvent,
+  mergeLeadActivities,
+} from '@/lib/leadHistory'
 import { SharedFilterBar } from '@/components/SharedFilterBar'
 import { ExportPresetsMenu } from '@/components/ExportPresetsMenu'
 import {
@@ -93,10 +103,12 @@ export default function Home() {
   const [runTick, setRunTick] = useState(0)
   const [sampleBusy, setSampleBusy] = useState(false)
   const [todayRuns, setTodayRuns] = useState<RunLite[]>([])
-  const [todayDrafts, setTodayDrafts] = useState<DraftLite[]>([])
+  const [todayAutomationFeed, setTodayAutomationFeed] = useState<AutomationFeedItem[]>([])
   const [integrations, setIntegrations] = useState<ClientIntegrations>({
     googleSheetsWebhook: '',
     hubspotEnabled: false,
+    salesforceEnabled: false,
+    pipedriveEnabled: false,
   })
   const [pending, startTransition] = useTransition()
   const [sessionReady, setSessionReady] = useState(false)
@@ -176,18 +188,43 @@ export default function Home() {
       }
       if (reportRes.ok) {
         const data = await reportRes.json()
-        const drafts: DraftLite[] = (data.events || [])
-          .filter((e: { kind: string }) =>
-            ['email_draft', 'crm_push', 'notify'].includes(e.kind),
-          )
+        const feed = (data.events || [])
+          .filter((e: { kind: string }) => isAutomationFeedKind(e.kind))
           .slice(0, 20)
-          .map((e: { id: string; kind: string; summary: string; payload?: { subject?: string } }) => ({
+          .map(
+            (e: {
+              id: string
+              kind: string
+              summary: string
+              payload?: Record<string, unknown>
+            }) => toAutomationFeedItem(e),
+          )
+        setTodayAutomationFeed(feed)
+
+        const fromEvents: Record<string, LeadActivityItem[]> = {}
+        for (const e of data.events || []) {
+          const act = activityFromReportEvent({
             id: e.id,
-            company: e.summary,
-            subject: e.payload?.subject,
-            kind: e.kind as DraftLite['kind'],
-          }))
-        setTodayDrafts(drafts)
+            kind: e.kind,
+            summary: e.summary,
+            payload: e.payload as Record<string, unknown> | undefined,
+            createdAt: e.createdAt,
+          })
+          if (!act) {
+            continue
+          }
+          const lid = String(act.payload?.leadId)
+          fromEvents[lid] = [...(fromEvents[lid] || []), act]
+        }
+        if (Object.keys(fromEvents).length) {
+          setActivities(prev => {
+            const next = { ...prev }
+            for (const [lid, items] of Object.entries(fromEvents)) {
+              next[lid] = mergeLeadActivities(next[lid] || [], items)
+            }
+            return next
+          })
+        }
       }
     } catch {
       // Today still works from local lead state.
@@ -260,19 +297,21 @@ export default function Home() {
               }),
             )
           })
+          const at = new Date().toISOString()
+          const fromRun: LeadActivityItem[] = []
           for (const run of payload.runs || []) {
             for (const nr of run.nodeResults || []) {
-              if (nr.ok && nr.artifacts?.activity) {
-                const act = nr.artifacts.activity as LeadActivityItem
-                setActivities(a => ({
-                  ...a,
-                  [scored.id]: [
-                    { ...act, createdAt: new Date().toISOString() },
-                    ...(a[scored.id] || []),
-                  ],
-                }))
+              const act = activityFromNodeResult(nr, scored.id, at)
+              if (act) {
+                fromRun.push(act)
               }
             }
+          }
+          if (fromRun.length) {
+            setActivities(a => ({
+              ...a,
+              [scored.id]: mergeLeadActivities(a[scored.id] || [], fromRun),
+            }))
           }
         }
       }
@@ -580,7 +619,7 @@ export default function Home() {
       </header>
 
       <SlidingSeg
-        className="mb-6"
+        className="seg--main mb-6"
         aria-label="Main"
         value={tab}
         onChange={next => {
@@ -611,7 +650,7 @@ export default function Home() {
           <TodayBoard
             leads={applySharedFilters(leads, filters, enrichments)}
             runs={todayRuns}
-            drafts={todayDrafts}
+            automationFeed={todayAutomationFeed}
             demoBusy={sampleBusy}
             onLoadDemo={() => void loadSampleAndRun()}
             onNavigate={nav => {
@@ -762,6 +801,7 @@ export default function Home() {
                     enriching={enrichingId === lead.id}
                     onEnrich={() => void enrichOneLead(lead)}
                     onRunAutomation={() => void runWorkflowsForLead(lead, 'tier_changed')}
+                    activities={activities[lead.id] || []}
                     onToggle={() => setOpenId(openId === lead.id ? null : lead.id)}
                   />
                 </div>

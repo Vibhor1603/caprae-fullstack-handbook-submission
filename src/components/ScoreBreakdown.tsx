@@ -17,15 +17,15 @@ export function ScoreBreakdown({
   }
 
   return (
-    <ul className="space-y-1.5">
+    <ul className="divide-y divide-[var(--sq-border)] rounded-[var(--radius-xs)] border border-[var(--sq-border)] bg-[var(--ash-900)]/60">
       {list.map((f, i) => {
         const pos = f.points >= 0
         return (
           <li
             key={`${f.key}-${i}`}
-            className="flex items-baseline justify-between gap-3 text-[13px]"
+            className="flex items-start justify-between gap-4 px-3 py-2.5 text-[13px] first:rounded-t-[var(--radius-xs)] last:rounded-b-[var(--radius-xs)]"
           >
-            <span className="min-w-0 text-[var(--sq-text-secondary)]">{f.label}</span>
+            <span className="min-w-0 leading-snug text-[var(--sq-text-secondary)]">{f.label}</span>
             <span
               className={`shrink-0 font-mono text-[12px] font-semibold tabular-nums ${
                 pos ? 'text-[#fbbf24]' : 'text-sq-danger'

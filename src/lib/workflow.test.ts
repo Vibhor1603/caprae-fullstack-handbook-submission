@@ -154,6 +154,27 @@ describe('executeWorkflow', () => {
     expect(r?.artifacts?.sent).toBe(false)
   })
 
+  it('sends email when automation runs with network enabled', async () => {
+    const g: WorkflowGraph = {
+      nodes: [
+        { id: 't', type: 'trigger', position: { x: 0, y: 0 }, data: { event: 'new_lead' } },
+        {
+          id: 'a',
+          type: 'action_draft_email',
+          position: { x: 80, y: 0 },
+          data: { template: 'Hi {{owner}}', subject: 'Intro' },
+        },
+      ],
+      edges: [{ id: 'e', source: 't', target: 'a' }],
+    }
+    const r = (await executeWorkflow(g, ctx({ allowNetwork: true }))).find(
+      x => x.type === 'action_draft_email',
+    )
+    expect(r?.ok).toBe(true)
+    expect(r?.detail).toContain('Email sent to')
+    expect(r?.artifacts?.sent).toBe(true)
+  })
+
   it('condition score gte works', async () => {
     const g: WorkflowGraph = {
       nodes: [

@@ -263,6 +263,30 @@ body {
   flex-wrap: nowrap;
   isolation: isolate;
 }
+.seg.seg--main {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.seg.seg--main::-webkit-scrollbar {
+  display: none;
+}
+.seg.seg--main .seg-item {
+  flex: 1 1 0;
+  min-width: 4.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.125rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
 .seg-pill {
   position: absolute;
   top: 4px;
@@ -397,6 +421,66 @@ body {
   border-radius: var(--radius);
   background: var(--ash-850);
   border: 1px solid var(--sq-border);
+}
+.kpi-stat-card {
+  display: block;
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 1rem 1.15rem 1.05rem;
+  border-radius: var(--radius);
+  background: var(--ash-850);
+  border: 1px solid var(--sq-border);
+  text-align: left;
+  transition: transform 140ms var(--ease-out), border-color 140ms ease;
+}
+button.kpi-stat-card {
+  cursor: pointer;
+}
+button.kpi-stat-card:hover {
+  border-color: var(--sq-border-strong);
+}
+button.kpi-stat-card:active {
+  transform: scale(0.985);
+}
+.kpi-stat-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sq-text-muted);
+}
+.kpi-stat-value {
+  display: block;
+  margin-top: 0.4rem;
+  font-family: var(--font-geist-mono, ui-monospace), ui-monospace, monospace;
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.kpi-stat-sub {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  color: var(--ash-300);
+}
+.kpi-stat-sub--muted {
+  color: var(--sq-text-muted);
+  font-size: 11px;
+}
+
+.lead-panel-block {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--sq-border);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 1rem 1.05rem;
 }
 
 /* One sheet = many rows (table pattern), not boxes-in-boxes */

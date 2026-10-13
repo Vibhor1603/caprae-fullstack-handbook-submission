@@ -17,7 +17,9 @@ export function ConfidenceMeter({
         <p className="text-[11px] font-medium text-[var(--sq-text-muted)]">{label}</p>
         <p className="text-[10px] font-semibold tabular-nums text-[var(--sq-text-muted)]">{pct}%</p>
       </div>
-      <p className="mt-1 truncate text-[13px] font-semibold tracking-tight text-white">{value || '—'}</p>
+      <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-snug tracking-tight text-white">
+        {value || '—'}
+      </p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
         <div
           className="h-full rounded-full bg-[rgba(251,191,36,0.75)] transition-[width] duration-200"

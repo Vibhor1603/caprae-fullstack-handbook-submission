@@ -21,6 +21,7 @@ export async function GET(req: Request) {
     crmPushes: 0,
     enrichments: 0,
     emailDrafts: 0,
+    emailsSent: 0,
     sheetsAppends: 0,
     webhooks: 0,
     notifies: 0,
@@ -44,6 +45,9 @@ export async function GET(req: Request) {
     }
     if (event.kind === 'email_draft') {
       summary.emailDrafts++
+    }
+    if (event.kind === 'email_sent') {
+      summary.emailsSent++
     }
     if (event.kind === 'sheets_append') {
       summary.sheetsAppends++

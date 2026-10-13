@@ -611,7 +611,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
           </h2>
           <p className="mt-0.5 max-w-xl text-[12px] leading-relaxed text-[var(--sq-text-muted)]">
             One trigger and one automation per canvas. Add a deal template above, or build your own —
-            drafts are never sent.
+            Dry run previews only; live runs send email and sync CRM when templates fire.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -777,7 +777,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
           {draftPreview && (
             <div className="rounded-[var(--radius)] border border-[var(--sq-border)] bg-[var(--ash-900)] px-3 py-2 text-[12px] text-zinc-300">
               <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sq-text-muted)]">
-                Draft preview · not sent
+                Dry run preview · not sent
               </p>
               <p className="mt-1">
                 <span className="text-zinc-500">From</span> {draftPreview.from}

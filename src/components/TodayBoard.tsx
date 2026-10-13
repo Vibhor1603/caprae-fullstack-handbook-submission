@@ -3,7 +3,6 @@
 import {
   AlertTriangle,
   ArrowRight,
-  Bell,
   CheckCircle2,
   Clock,
   FileText,
@@ -14,8 +13,12 @@ import {
 } from 'lucide-react'
 import type { ScoredLead } from '@/lib/scoring'
 import { buildFunnelReport } from '@/lib/funnel'
+import type { AutomationFeedItem } from '@/lib/todayFeed'
 import { StageBadge } from '@/components/StageSelect'
 import { TierBadge } from '@/components/StatusBadge'
+import { KpiStat } from '@/components/KpiStat'
+
+export type { AutomationFeedItem } from '@/lib/todayFeed'
 
 export type TodayNav =
   | { tab: 'leads'; leadId?: string }
@@ -32,17 +35,10 @@ export type RunLite = {
   createdAt?: string
 }
 
-export type DraftLite = {
-  id: string
-  company: string
-  subject?: string
-  kind: 'email_draft' | 'crm_push' | 'notify'
-}
-
 type Props = {
   leads: ScoredLead[]
   runs: RunLite[]
-  drafts: DraftLite[]
+  automationFeed: AutomationFeedItem[]
   loading?: boolean
   onNavigate: (nav: TodayNav) => void
   onLoadDemo?: () => void
@@ -51,12 +47,14 @@ type Props = {
 
 function Section({
   title,
+  hint,
   icon: Icon,
   color,
   children,
   empty,
 }: {
   title: string
+  hint?: string
   icon: typeof Sparkles
   color: string
   children: React.ReactNode
@@ -67,11 +65,18 @@ function Section({
     : Boolean(children)
   return (
     <section className="panel overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-[var(--sq-border)] px-4 py-3">
-        <span className="icon-well icon-well-sm" style={{ background: `${color}22`, color }}>
-          <Icon strokeWidth={1.75} />
-        </span>
-        <h2 className="text-[13px] font-semibold tracking-tight text-white">{title}</h2>
+      <div className="border-b border-[var(--sq-border)] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="icon-well icon-well-sm" style={{ background: `${color}22`, color }}>
+            <Icon strokeWidth={1.75} />
+          </span>
+          <h2 className="text-[13px] font-semibold tracking-tight text-white">{title}</h2>
+        </div>
+        {hint ? (
+          <p className="mt-1.5 pl-[calc(1.75rem+0.5rem)] text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
+            {hint}
+          </p>
+        ) : null}
       </div>
       <div className="divide-y divide-[var(--sq-border)]">
         {hasKids ? children : (
@@ -116,10 +121,39 @@ function Row({
   )
 }
 
+function FeedStatus({
+  label,
+  tone,
+}: {
+  label: string
+  tone: AutomationFeedItem['statusTone']
+}) {
+  const cls =
+    tone === 'ok' ? 'badge-ok' : tone === 'warn' ? 'badge-warn' : 'badge-tier-c'
+  return <span className={`badge shrink-0 ${cls}`}>{label}</span>
+}
+
+function ActivityRow({ item, index = 0 }: { item: AutomationFeedItem; index?: number }) {
+  return (
+    <div
+      className="row-enter flex items-start gap-3 px-4 py-3"
+      style={{ animationDelay: `${Math.min(index, 8) * 36}ms` }}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium leading-snug text-white">{item.title}</p>
+        {item.subtitle ? (
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--sq-text-muted)]">{item.subtitle}</p>
+        ) : null}
+      </div>
+      <FeedStatus label={item.statusLabel} tone={item.statusTone} />
+    </div>
+  )
+}
+
 export function TodayBoard({
   leads,
   runs,
-  drafts,
+  automationFeed,
   loading,
   onNavigate,
   onLoadDemo,
@@ -176,26 +210,18 @@ export function TodayBoard({
 
       <div className="grid gap-3 sm:grid-cols-3">
         {funnel.steps.slice(0, 3).map(step => (
-          <button
+          <KpiStat
             key={step.stage}
-            type="button"
-            className="kpi-card !flex-col !gap-1.5 text-left transition-transform duration-150 active:scale-[0.98]"
+            label={step.label}
+            value={step.count}
+            sub={
+              step.conversionFromPrev != null
+                ? `${step.conversionFromPrev}% from prior step`
+                : 'Pipeline entry'
+            }
+            subMuted={step.conversionFromPrev == null}
             onClick={() => onNavigate({ tab: 'report' })}
-          >
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sq-text-muted)]">
-              {step.label}
-            </p>
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <p className="font-mono text-2xl font-bold tabular-nums tracking-tight text-white">
-                {step.count}
-              </p>
-              {step.conversionFromPrev != null && (
-                <p className="text-[12px] font-medium tabular-nums text-[var(--sq-text-secondary)]">
-                  {step.conversionFromPrev}% from prior
-                </p>
-              )}
-            </div>
-          </button>
+          />
         ))}
       </div>
 
@@ -252,16 +278,15 @@ export function TodayBoard({
           ))}
         </Section>
 
-        <Section title="Drafts & CRM waiting" icon={FileText} color="#34d399" empty="No drafts waiting.">
-          {drafts.slice(0, 8).map((d, i) => (
-            <Row
-              key={d.id}
-              index={i}
-              title={d.company}
-              meta={d.subject || d.kind}
-              onClick={() => onNavigate({ tab: 'runs' })}
-              trailing={<Bell className="size-3.5 text-[#fb923c]" />}
-            />
+        <Section
+          title="Automation output"
+          hint="Steps already completed by armed workflows — no inbox approval."
+          icon={FileText}
+          color="#fbbf24"
+          empty="Run a template on Automate to see sends and CRM syncs here."
+        >
+          {automationFeed.slice(0, 8).map((item, i) => (
+            <ActivityRow key={item.id} item={item} index={i} />
           ))}
         </Section>
 
