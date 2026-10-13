@@ -53,7 +53,7 @@ export function SharedFilterBar({
             { id: 'A', label: `A (${summary.tierA})` },
             { id: 'B', label: `B (${summary.tierB})` },
             { id: 'C', label: `C (${summary.tierC})` },
-            { id: 'JUNK', label: `Junk / dupes (${summary.junk + summary.duplicates})` },
+            { id: 'JUNK', label: `Skip (${summary.junk + summary.duplicates})` },
           ]}
         />
       </div>
@@ -120,7 +120,7 @@ export function SharedFilterBar({
           </select>
         </label>
         <label className="flex items-center gap-1.5 text-[11px] text-[var(--sq-text-muted)]">
-          Min confidence
+          Min % sure
           <select
             className="field !py-1 !px-2 !text-[11px] !w-auto min-w-[5rem]"
             value={filters.minConfidence == null ? '' : String(filters.minConfidence)}

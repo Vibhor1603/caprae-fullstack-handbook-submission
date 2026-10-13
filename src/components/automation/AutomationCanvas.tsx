@@ -610,8 +610,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
             {draftName || activeWorkflow?.name || 'Deal-sourcing autopilot'}
           </h2>
           <p className="mt-0.5 max-w-xl text-[12px] leading-relaxed text-[var(--sq-text-muted)]">
-            One trigger and one automation per canvas. Add a deal template above, or build your own —
-            Dry run previews only; live runs send email and sync CRM when templates fire.
+            Pick a template or build your own. Dry run = preview; live runs send email and sync CRM.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

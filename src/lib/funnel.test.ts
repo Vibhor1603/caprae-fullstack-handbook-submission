@@ -35,7 +35,7 @@ describe('funnel math', () => {
 
   it('builds report with conversion and credits', () => {
     const report = buildFunnelReport(leads)
-    expect(report.steps[0].label).toBe('In list')
+    expect(report.steps[0].label).toBe('New')
     expect(report.steps[0].count).toBe(6)
     expect(report.steps[2].conversionFromPrev).not.toBeNull()
     expect(report.creditsSaved.total).toBe(6)

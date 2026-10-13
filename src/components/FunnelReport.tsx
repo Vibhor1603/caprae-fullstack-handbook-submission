@@ -11,16 +11,16 @@ import { ExportPresetsMenu } from '@/components/ExportPresetsMenu'
 import { SlidingSeg } from '@/components/SlidingSeg'
 import type { EnrichmentSnapshot } from '@/lib/enrichment'
 
-function cohortLabel(filters: SharedFilters, count: number): string {
+function listLabel(filters: SharedFilters, count: number): string {
   const tier =
     filters.tier === 'ALL'
-      ? 'All tiers'
+      ? 'All'
       : filters.tier === 'JUNK'
-        ? 'Junk & dupes'
+        ? 'Skip'
         : `Tier ${filters.tier}`
   const bits = [tier, `${count} lead${count === 1 ? '' : 's'}`]
   if (filters.query.trim()) {
-    bits.push(`matching “${filters.query.trim().slice(0, 24)}”`)
+    bits.push(`“${filters.query.trim().slice(0, 24)}”`)
   }
   return bits.join(' · ')
 }
@@ -99,7 +99,7 @@ export function FunnelReport({
   if (!leads.length) {
     return (
       <p className="panel px-5 py-14 text-center text-sm text-[var(--sq-text-muted)]">
-        Load demo data to see the acquisition funnel.
+        Load demo data to see deal stages.
       </p>
     )
   }
@@ -108,19 +108,19 @@ export function FunnelReport({
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-3">
         <div>
-          <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">Pipeline funnel</h2>
+          <h2 className="text-xl font-semibold tracking-[-0.03em] text-white">Deal stages</h2>
           <p className="mt-1.5 max-w-lg text-[15px] leading-relaxed text-[var(--sq-text-secondary)]">
-            How many leads in your cohort reached each deal stage — from first target through LOI.
+            How far each lead has moved — from new to LOI.
           </p>
         </div>
         <SlidingSeg
           className="seg--main w-full max-w-md"
-          aria-label="Cohort tier"
+          aria-label="Filter by tier"
           value={active.tier}
           onChange={tier => setActive({ ...active, tier })}
           items={tierItems}
         />
-        <p className="text-[13px] text-[var(--sq-text-muted)]">{cohortLabel(active, cleanCount)}</p>
+        <p className="text-[13px] text-[var(--sq-text-muted)]">{listLabel(active, cleanCount)}</p>
       </header>
 
       <section className="panel px-5 py-6 sm:px-6">
@@ -155,15 +155,14 @@ export function FunnelReport({
         </div>
 
         <p className="mt-6 border-t border-[var(--sq-border)] pt-4 text-[12px] leading-relaxed text-[var(--sq-text-muted)]">
-          <span className="text-[var(--sq-text-secondary)]">Enrichment efficiency:</span>{' '}
-          {report.creditsSaved.ratio}% credits saved — enriched {report.creditsSaved.enriched} of{' '}
-          {report.creditsSaved.total} clean leads instead of blasting the full list.
+          <span className="text-[var(--sq-text-secondary)]">Research spend:</span> filled in{' '}
+          {report.creditsSaved.enriched} of {report.creditsSaved.total} leads (
+          {report.creditsSaved.ratio}% skipped).
           {topWorkflow ? (
             <>
               {' '}
               <span className="text-[var(--sq-text-secondary)]">Top workflow:</span>{' '}
-              {topWorkflow.name} moved {topWorkflow.leadsMoved} lead
-              {topWorkflow.leadsMoved === 1 ? '' : 's'}.
+              {topWorkflow.name} ({topWorkflow.leadsMoved}).
             </>
           ) : null}
         </p>
@@ -180,9 +179,9 @@ export function FunnelReport({
             className={`size-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
             strokeWidth={1.75}
           />
-          {detailsOpen ? 'Hide breakdown' : 'Industry, state & export'}
+          {detailsOpen ? 'Hide details' : 'More details & export'}
         </button>
-        <ExportPresetsMenu leads={filtered} label="Export cohort" />
+        <ExportPresetsMenu leads={filtered} label="Export list" />
       </div>
 
       {detailsOpen && (
@@ -222,9 +221,7 @@ export function FunnelReport({
             </div>
           </div>
           <p className="text-[12px] text-[var(--sq-text-muted)]">
-            Closed {report.closed} · Lost {report.lost}. For search, industry, stage, and confidence
-            filters, use the <span className="text-[var(--sq-text-secondary)]">Leads</span> tab — filters
-            stay in sync here.
+            Closed {report.closed} · Lost {report.lost}. More filters live on the Leads tab.
           </p>
         </div>
       )}

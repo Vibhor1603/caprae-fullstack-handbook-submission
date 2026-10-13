@@ -41,7 +41,7 @@ function toneForKind(kind: string): { bg: string; color: string } {
 export function LeadActivityTimeline({
   activities,
   max = 8,
-  empty = 'No interactions yet — enrich or run automation to log history.',
+  empty = 'Nothing yet — fill from website or run a workflow.',
 }: {
   activities: LeadActivityItem[]
   max?: number

@@ -36,7 +36,7 @@ export function LeadCrmConnectStrip({ lead }: { lead: ScoredLead }) {
   return (
     <div>
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
-        Connect & export
+        Export to CRM
       </p>
       <div className="flex flex-wrap gap-2">
         {CRM_OPTIONS.map(({ id, name, Logo }) => (
@@ -57,8 +57,7 @@ export function LeadCrmConnectStrip({ lead }: { lead: ScoredLead }) {
         ))}
       </div>
       <p className="mt-2 text-[10px] leading-relaxed text-[var(--sq-text-muted)]">
-        Live sync: set up webhooks under <span className="text-[var(--sq-text-secondary)]">Connect</span>{' '}
-        in the header, or export a row to import into your CRM.
+        Downloads a CSV for this lead. Live webhooks: header → Connect.
       </p>
     </div>
   )

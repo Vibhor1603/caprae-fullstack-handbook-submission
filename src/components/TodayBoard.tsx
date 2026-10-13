@@ -181,9 +181,9 @@ export function TodayBoard({
         >
           <Sparkles strokeWidth={1.75} />
         </span>
-        <p className="text-xl font-semibold tracking-[-0.03em] text-white">Your day starts with a list</p>
+        <p className="text-xl font-semibold tracking-[-0.03em] text-white">Start with a lead list</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--sq-text-secondary)]">
-          Load fictional demo data to see A-tier matches, workflow runs, follow-ups, and the funnel — fully connected.
+          Load demo data to see best matches, workflows, and deal stages.
         </p>
         {onLoadDemo && (
           <button
@@ -213,22 +213,22 @@ export function TodayBoard({
           const copy =
             step.stage === 'new'
               ? {
-                  label: 'In your list',
-                  sub: 'Clean leads after triage (not junk/dupes)',
+                  label: 'In list',
+                  sub: 'Good leads (skip removed)',
                 }
               : step.stage === 'enriched'
                 ? {
-                    label: 'Looked up',
+                    label: 'Researched',
                     sub:
                       step.conversionFromPrev != null
-                        ? `${step.conversionFromPrev}% of list — website details filled in`
-                        : 'Website details filled in',
+                        ? `${step.conversionFromPrev}% — details from website`
+                        : 'Details from website',
                   }
                 : {
                     label: 'Contacted',
                     sub:
                       step.conversionFromPrev != null
-                        ? `${step.conversionFromPrev}% of looked-up — outreach started`
+                        ? `${step.conversionFromPrev}% — outreach started`
                         : 'Outreach started',
                   }
           return (
@@ -245,7 +245,7 @@ export function TodayBoard({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="New A-tier matches" icon={Sparkles} color="#fbbf24" empty="No fresh A-tier leads.">
+        <Section title="Best matches (A)" icon={Sparkles} color="#fbbf24" empty="No A-tier leads yet.">
           {newA.map((l, i) => (
             <Row
               key={l.id}
@@ -263,7 +263,7 @@ export function TodayBoard({
           ))}
         </Section>
 
-        <Section title="Score / tier changes" icon={TrendingUp} color="#60a5fa" empty="No tier flips yet.">
+        <Section title="Score changes" icon={TrendingUp} color="#60a5fa" empty="No score changes yet.">
           {changed.map((l, i) => (
             <Row
               key={l.id}
@@ -276,7 +276,7 @@ export function TodayBoard({
           ))}
         </Section>
 
-        <Section title="Triggers" icon={GitBranch} color="#a78bfa" empty="No runs yet — arm Automate.">
+        <Section title="Workflow runs" icon={GitBranch} color="#a78bfa" empty="No runs yet — open Automate.">
           {[...pending, ...failed, ...done].slice(0, 8).map((r, i) => (
             <Row
               key={r.id}
@@ -298,11 +298,11 @@ export function TodayBoard({
         </Section>
 
         <Section
-          title="Automation output"
-          hint="Steps already completed by armed workflows — no inbox approval."
+          title="What ran"
+          hint="Emails, CRM syncs, and alerts from your workflows."
           icon={FileText}
           color="#fbbf24"
-          empty="Run a template on Automate to see sends and CRM syncs here."
+          empty="Run a template on Automate to fill this list."
         >
           {automationFeed.slice(0, 8).map((item, i) => (
             <ActivityRow key={item.id} item={item} index={i} />
@@ -331,7 +331,7 @@ export function TodayBoard({
           ))}
         </Section>
 
-        <Section title="Funnel snapshot" icon={TrendingUp} color="#94a3b8" empty="">
+        <Section title="Deal stages" icon={TrendingUp} color="#94a3b8" empty="">
           <div className="space-y-2 px-4 py-3">
             {funnel.steps.map(step => {
               const max = funnel.steps[0]?.count || 1

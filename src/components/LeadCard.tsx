@@ -130,7 +130,7 @@ export function LeadCard({
                         }}
                       >
                         <Zap className="size-3.5" strokeWidth={1.75} />
-                        {enriching ? 'Enriching…' : 'Enrich from website'}
+                        {enriching ? 'Filling in…' : 'Fill from website'}
                       </button>
                     )}
                     {onRunAutomation && (
@@ -150,8 +150,8 @@ export function LeadCard({
                 )}
                 {enrichment && (
                   <p className="text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
-                    After enrich, <span className="text-[var(--sq-text-secondary)]">% sure</span> on a field
-                    is data confidence — not ICP fit.
+                    <span className="text-[var(--sq-text-secondary)]">% sure</span> = how reliable that
+                    field looks (not the fit score).
                   </p>
                 )}
                 {facts.length > 0 && (
@@ -201,7 +201,7 @@ export function LeadCard({
             )}
 
             {!dimmed && (item.scoreBreakdown?.length || reasons.length > 0) && (
-              <CollapsibleSection title="Why this score" hint={scoreHint(item)} defaultOpen={false}>
+              <CollapsibleSection title="Score reasons" hint={scoreHint(item)} defaultOpen={false}>
                 {item.scoreBreakdown?.length ? (
                   <ScoreBreakdown factors={item.scoreBreakdown} max={12} />
                 ) : (

@@ -31,7 +31,7 @@ export type KindMeta = {
 export const KIND_META: Record<NodeKind, KindMeta> = {
   trigger: { label: 'Trigger', tone: '#60a5fa', group: 'trigger', Icon: Zap },
   condition: { label: 'Condition', tone: '#fbbf24', group: 'condition', Icon: Filter },
-  action_enrich: { label: 'Enrich', tone: '#a78bfa', group: 'action', Icon: Sparkles },
+  action_enrich: { label: 'Fill from site', tone: '#a78bfa', group: 'action', Icon: Sparkles },
   action_draft_email: { label: 'Send email', tone: '#fbbf24', group: 'action', Icon: Mail },
   action_move_stage: { label: 'Move stage', tone: '#f472b6', group: 'action', Icon: ArrowRightLeft },
   action_crm_push: { label: 'CRM / Sheets', tone: '#34d399', group: 'action', Icon: Database },
@@ -91,7 +91,7 @@ export function subtitleForNode(data: NodeData): string {
       return `Tier → ${data.tier || 'A'}`
     }
     if (event === 'field_updated') {
-      return 'After enrich'
+      return 'After fill'
     }
     if (event === 'stage_changed') {
       return 'Stage change'
@@ -118,7 +118,7 @@ export function subtitleForNode(data: NodeData): string {
   }
 
   if (data.kind === 'action_draft_email') {
-    return 'never sent'
+    return 'dry run only'
   }
 
   if (data.kind === 'action_move_stage') {

@@ -17,14 +17,14 @@ export function StatusBadge({ item }: { item: ScoredLead }) {
     return (
       <span className="badge badge-danger">
         <AlertTriangle className="size-3" strokeWidth={2} aria-hidden />
-        Junk
+        Skip
       </span>
     )
   }
   return (
     <span className="badge badge-ok">
       <CheckCircle2 className="size-3" strokeWidth={2} aria-hidden />
-      Clean
+      Ready
     </span>
   )
 }

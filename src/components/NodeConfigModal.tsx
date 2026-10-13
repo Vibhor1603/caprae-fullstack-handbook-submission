@@ -276,7 +276,7 @@ export function NodeConfigModal({
           {kind === 'action_draft_email' && (
             <>
               <label className="sq-field">
-                <span>From (draft only — never sent)</span>
+                <span>From (dry run does not send)</span>
                 <input
                   className="field"
                   type="email"

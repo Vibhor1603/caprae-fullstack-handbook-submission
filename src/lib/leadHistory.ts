@@ -8,10 +8,10 @@ export function activityLabel(kind: string): string {
     email_preview: 'Email preview',
     crm_sync: 'CRM',
     crm_push: 'CRM',
-    enrich: 'Enrichment',
+    enrich: 'Website fill',
     stage_change: 'Stage',
-    notify: 'Notification',
-    workflow_run: 'Automation',
+    notify: 'Alert',
+    workflow_run: 'Workflow',
     sheets_append: 'Google Sheets',
     webhook: 'Webhook',
   }

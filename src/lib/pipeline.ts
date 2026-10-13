@@ -18,10 +18,10 @@ export type PipelineStage = (typeof PIPELINE_STAGES)[number]
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   new: 'New',
-  enriched: 'Enriched',
+  enriched: 'Researched',
   contacted: 'Contacted',
   replied: 'Replied',
-  owner_call: 'Owner call',
+  owner_call: 'Call booked',
   loi: 'LOI',
   closed: 'Closed',
   lost: 'Lost',

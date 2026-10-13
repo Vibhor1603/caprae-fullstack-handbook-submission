@@ -534,7 +534,7 @@ export default function Home() {
         [item.id]: [
           {
             kind: 'enrich',
-            summary: `Enriched from website (${payload.enrichment?.source || 'live'})`,
+            summary: `Filled from website (${payload.enrichment?.source || 'live'})`,
             createdAt: new Date().toISOString(),
           },
           ...(a[item.id] || []),
@@ -590,8 +590,7 @@ export default function Home() {
             Deal Sourcing Autopilot
           </h1>
           <p className="text-[14px] leading-relaxed text-[var(--sq-text-secondary)]">
-            Today’s command view → triage → enrich → pipeline → CRM — one connected product for
-            ETA buyers. Drafts only; never sends email.
+            Score SaaSquatch CSVs, fill gaps from websites, and export the best leads to CRM.
           </p>
         </div>
 
@@ -602,7 +601,7 @@ export default function Home() {
             className="btn btn-primary"
             disabled={sampleBusy || busy}
             onClick={() => void loadSampleAndRun()}
-            title="Load demo data, enrich an A-tier lead, and fire templates"
+            title="Load demo data and run sample workflows"
           >
             <Sparkles className="size-3.5" strokeWidth={1.75} />
             {sampleBusy ? 'Loading demo…' : 'Use demo data'}
@@ -715,7 +714,7 @@ export default function Home() {
               </span>
               <p className="text-xl font-semibold tracking-[-0.03em] text-white">Drop SaaSquatch CSV</p>
               <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--sq-text-secondary)]">
-                Import → ethical enrich → acquisition score → automation fires for A-tier.
+                Upload a CSV, score fits, fill gaps from websites, then automate A-tier outreach.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <button
@@ -738,7 +737,7 @@ export default function Home() {
                 </button>
               </div>
               {busy && (
-                <p className="mt-5 text-xs text-[var(--sq-text-muted)]">Scoring & arming workflows…</p>
+                <p className="mt-5 text-xs text-[var(--sq-text-muted)]">Scoring and starting workflows…</p>
               )}
             </section>
             <IcpPanel icp={icp} onChange={onIcpChange} defaultOpen={false} />
@@ -812,8 +811,7 @@ export default function Home() {
       </div>
 
       <footer className="mt-14 text-center text-[11px] text-[var(--sq-text-muted)]">
-        Caprae / SaaSquatch demo · Ethical crawl (robots.txt + rate limit) · Does not send email ·
-        Fictional .example data
+        Caprae / SaaSquatch demo · robots.txt + rate limits · fictional .example data
       </footer>
     </main>
   )

@@ -38,7 +38,7 @@ const parts: {
   },
   {
     key: 'skip',
-    label: 'Junk / dupes',
+    label: 'Skip',
     tone: '#f43f5e',
     well: 'rgba(244, 63, 94, 0.14)',
     icon: AlertTriangle,
@@ -72,7 +72,7 @@ export function SummaryCards({ summary }: { summary: TriageSummary }) {
         })}
       </div>
       <p className="text-[12px] text-[var(--sq-text-muted)]">
-        {summary.clean} CRM-ready of {summary.total} scored
+        {summary.clean} ready of {summary.total} scored
       </p>
     </div>
   )
