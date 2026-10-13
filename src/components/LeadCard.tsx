@@ -180,7 +180,11 @@ export function LeadCard({
                                 </span>
                               ) : null}
                             </div>
-                            <dd title={f.value}>{f.value}</dd>
+                            <dd>
+                              <div className="fact-scroll" title={f.value} tabIndex={0}>
+                                {f.value}
+                              </div>
+                            </dd>
                           </div>
                         </div>
                       )

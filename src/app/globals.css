@@ -608,9 +608,36 @@ button.kpi-stat-card:active {
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #fff;
+}
+/* Truncate by default; on hover show a thin in-cell slider to read the rest */
+.fact-scroll {
+  max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  text-overflow: ellipsis;
+  scrollbar-width: none;
+}
+.fact-row:hover .fact-scroll,
+.fact-row:focus-within .fact-scroll {
+  text-overflow: clip;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+  padding-bottom: 3px;
+}
+.fact-row:hover .fact-scroll::-webkit-scrollbar,
+.fact-row:focus-within .fact-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.fact-row:hover .fact-scroll::-webkit-scrollbar-track,
+.fact-row:focus-within .fact-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fact-row:hover .fact-scroll::-webkit-scrollbar-thumb,
+.fact-row:focus-within .fact-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
 }
 
 /* Open-card fit: bigger mono number with a soft highlight, no ring */
