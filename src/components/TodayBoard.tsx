@@ -179,18 +179,22 @@ export function TodayBoard({
           <button
             key={step.stage}
             type="button"
-            className="kpi-card text-left transition-transform duration-150 active:scale-[0.98]"
+            className="kpi-card !flex-col !gap-1.5 text-left transition-transform duration-150 active:scale-[0.98]"
             onClick={() => onNavigate({ tab: 'report' })}
           >
             <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--sq-text-muted)]">
               {step.label}
             </p>
-            <p className="mt-1 font-mono text-2xl font-bold tabular-nums text-white">{step.count}</p>
-            {step.conversionFromPrev != null && (
-              <p className="mt-1 text-[11px] text-[var(--sq-text-muted)]">
-                {step.conversionFromPrev}% from prior
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <p className="font-mono text-2xl font-bold tabular-nums tracking-tight text-white">
+                {step.count}
               </p>
-            )}
+              {step.conversionFromPrev != null && (
+                <p className="text-[12px] font-medium tabular-nums text-[var(--sq-text-secondary)]">
+                  {step.conversionFromPrev}% from prior
+                </p>
+              )}
+            </div>
           </button>
         ))}
       </div>

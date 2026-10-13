@@ -190,7 +190,7 @@ export function FunnelReport({
                   <span className="font-mono tabular-nums text-[var(--sq-text-secondary)]">
                     {step.count}
                     {step.conversionFromPrev != null ? (
-                      <span className="ml-2 text-[11px] text-[var(--sq-text-muted)]">
+                      <span className="ml-2 text-[11px] font-medium text-[var(--sq-text-secondary)]">
                         {step.conversionFromPrev}%
                       </span>
                     ) : null}
