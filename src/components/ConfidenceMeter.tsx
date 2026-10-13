@@ -20,7 +20,7 @@ export function ConfidenceMeter({
       <p className="mt-1 truncate text-[13px] font-semibold tracking-tight text-white">{value || '—'}</p>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
         <div
-          className="h-full rounded-full bg-[#22c55e] transition-[width] duration-200"
+          className="h-full rounded-full bg-[rgba(251,191,36,0.75)] transition-[width] duration-200"
           style={{ width: `${Math.max(6, pct)}%` }}
         />
       </div>

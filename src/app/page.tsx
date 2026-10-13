@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type DragEvent } from 'react'
-import { FileUp, Sparkles, Upload, Workflow, Zap } from 'lucide-react'
+import { FileUp, Sparkles, Upload } from 'lucide-react'
 import Papa from 'papaparse'
 import {
   DEFAULT_ICP,
@@ -16,16 +16,14 @@ import type { EnrichmentSnapshot as EnrichSnap } from '@/lib/enrichment'
 import { applySharedFilters, DEFAULT_FILTERS, type SharedFilters } from '@/lib/filters'
 import { loadSession, saveSession, type AppTab } from '@/lib/sessionStore'
 import { withProfiles, type LeadActivityItem } from '@/lib/profile'
-import { applyStageChange, type PipelineStage } from '@/lib/pipeline'
+import type { PipelineStage } from '@/lib/pipeline'
 import { assignDemoStages } from '@/lib/demoSeed'
 import { IcpPanel } from '@/components/IcpPanel'
 import { SummaryCards } from '@/components/SummaryCards'
 import { LeadCard } from '@/components/LeadCard'
-import { ConfidenceMeter } from '@/components/ConfidenceMeter'
 import { RunsDashboard } from '@/components/RunsDashboard'
 import { FunnelReport } from '@/components/FunnelReport'
 import { TodayBoard, type DraftLite, type RunLite } from '@/components/TodayBoard'
-import { LeadProfile } from '@/components/LeadProfile'
 import { SharedFilterBar } from '@/components/SharedFilterBar'
 import { ExportPresetsMenu } from '@/components/ExportPresetsMenu'
 import {
@@ -86,7 +84,6 @@ export default function Home() {
   const [icp, setIcp] = useState<Icp>(() => cloneIcp())
   const [filters, setFilters] = useState<SharedFilters>({ ...DEFAULT_FILTERS })
   const [openId, setOpenId] = useState<string | null>(null)
-  const [profileId, setProfileId] = useState<string | null>(null)
   const [tab, setTab] = useState<AppTab>('today')
   const [err, setErr] = useState<string | null>(null)
   const [warn, setWarn] = useState<string | null>(null)
@@ -124,8 +121,7 @@ export default function Home() {
       }
       setFilters(snapshot.filters || { ...DEFAULT_FILTERS })
       setTab(snapshot.tab || 'today')
-      setOpenId(snapshot.openId)
-      setProfileId(snapshot.profileId)
+      setOpenId(snapshot.openId || snapshot.profileId)
     }
     setSessionReady(true)
   }, [])
@@ -142,9 +138,9 @@ export default function Home() {
       filters,
       tab,
       openId,
-      profileId,
+      profileId: null,
     })
-  }, [sessionReady, rawLeads, enrichments, activities, icp, filters, tab, openId, profileId])
+  }, [sessionReady, rawLeads, enrichments, activities, icp, filters, tab, openId])
 
   const leads = useMemo(() => {
     if (!rawLeads.length) {
@@ -157,11 +153,6 @@ export default function Home() {
   const visible = useMemo(
     () => applySharedFilters(leads, filters, enrichments),
     [leads, filters, enrichments],
-  )
-
-  const profileLead = useMemo(
-    () => (profileId ? leads.find(l => l.id === profileId) || null : null),
-    [leads, profileId],
   )
 
   const refreshTodayFeeds = useCallback(async () => {
@@ -210,7 +201,6 @@ export default function Home() {
   function resetLeadListUi() {
     setFilters({ ...DEFAULT_FILTERS })
     setOpenId(null)
-    setProfileId(null)
   }
 
   function applyTriagedLeads(scored: ScoredLead[], demo = false) {
@@ -449,7 +439,6 @@ export default function Home() {
       const list = await loadDemoData()
       setFilters({ ...DEFAULT_FILTERS, tier: 'A' })
       setOpenId(null)
-      setProfileId(null)
       const target =
         list.find(lead => !lead.junk && !lead.duplicateOf && lead.tier === 'A') || list[0]
       if (target) {
@@ -535,33 +524,6 @@ export default function Home() {
     }
   }
 
-  function changeStage(lead: ScoredLead, stage: PipelineStage) {
-    const result = applyStageChange(lead.stage, stage, 'manual')
-    if ('ok' in result && result.ok === false) {
-      setErr(result.reason)
-      return
-    }
-    const ok = result as Exclude<typeof result, { ok: false }>
-    startTransition(() => {
-      setRawLeads(prev =>
-        prev.map(l =>
-          l.id === lead.id
-            ? { ...l, stage: ok.stage, stageChangedAt: ok.stageChangedAt }
-            : l,
-        ),
-      )
-    })
-    setActivities(a => ({
-      ...a,
-      [lead.id]: [
-        { ...ok.activity, createdAt: ok.stageChangedAt },
-        ...(a[lead.id] || []),
-      ],
-    }))
-    const updated = { ...lead, stage: ok.stage, stageChangedAt: ok.stageChangedAt }
-    void runWorkflowsForLead(updated, 'stage_changed', { prevStage: ok.previousStage })
-  }
-
   function onIcpChange(next: Icp) {
     startTransition(() => setIcp(next))
   }
@@ -576,7 +538,6 @@ export default function Home() {
   }
 
   const hasLeads = leads.length > 0
-  const openEnrich = openId ? enrichments[openId] : null
   const aCount = summary.tierA
 
   return (
@@ -624,9 +585,6 @@ export default function Home() {
         value={tab}
         onChange={next => {
           setTab(next)
-          if (next !== 'leads') {
-            setProfileId(null)
-          }
         }}
         items={[
           { id: 'today', label: 'Today' },
@@ -659,8 +617,7 @@ export default function Home() {
             onNavigate={nav => {
               setTab(nav.tab)
               if (nav.tab === 'leads' && 'leadId' in nav && nav.leadId) {
-                setProfileId(nav.leadId)
-                setOpenId(null)
+                setOpenId(nav.leadId)
               }
             }}
           />
@@ -680,20 +637,7 @@ export default function Home() {
           />
         )}
 
-        {tab === 'leads' && profileLead && (
-          <LeadProfile
-            item={profileLead}
-            enrichment={enrichments[profileLead.id]}
-            activities={activities[profileLead.id] || []}
-            enriching={enrichingId === profileLead.id}
-            onBack={() => setProfileId(null)}
-            onStageChange={stage => changeStage(profileLead, stage)}
-            onEnrich={() => void enrichOneLead(profileLead)}
-            onRunAutomation={() => void runWorkflowsForLead(profileLead, 'tier_changed')}
-          />
-        )}
-
-        {tab === 'leads' && !profileLead && !hasLeads && (
+        {tab === 'leads' && !hasLeads && (
           <div className="space-y-5">
             <section
               className={`dropzone relative px-6 py-16 text-center sm:px-10 ${busy ? 'opacity-70' : ''}`}
@@ -762,7 +706,7 @@ export default function Home() {
           </div>
         )}
 
-        {tab === 'leads' && !profileLead && hasLeads && (
+        {tab === 'leads' && hasLeads && (
           <div className="space-y-5">
             <div className="space-y-3">
               <div className="flex items-center justify-end gap-3">
@@ -814,73 +758,12 @@ export default function Home() {
                     item={lead}
                     index={index}
                     open={openId === lead.id}
-                    onToggle={() => {
-                      // Primary: open dossier; secondary expand via second click on open row
-                      if (openId === lead.id) {
-                        setProfileId(lead.id)
-                        setOpenId(null)
-                      } else {
-                        setOpenId(lead.id)
-                      }
-                    }}
+                    enrichment={enrichments[lead.id]}
+                    enriching={enrichingId === lead.id}
+                    onEnrich={() => void enrichOneLead(lead)}
+                    onRunAutomation={() => void runWorkflowsForLead(lead, 'tier_changed')}
+                    onToggle={() => setOpenId(openId === lead.id ? null : lead.id)}
                   />
-                  {openId === lead.id && (
-                    <div className="space-y-4 border-b border-[var(--sq-border)] bg-[var(--ash-800)] px-5 pb-5 sm:px-6">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-accent"
-                          onClick={() => {
-                            setProfileId(lead.id)
-                            setOpenId(null)
-                          }}
-                        >
-                          Open profile
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          disabled={enrichingId === lead.id}
-                          onClick={() => void enrichOneLead(lead)}
-                        >
-                          <Zap className="size-3.5" strokeWidth={1.75} />
-                          {enrichingId === lead.id ? 'Enriching…' : 'Enrich from website'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => void runWorkflowsForLead(lead, 'tier_changed')}
-                        >
-                          <Workflow className="size-3.5" strokeWidth={1.75} />
-                          Run automation
-                        </button>
-                      </div>
-                      {openEnrich && (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                          <ConfidenceMeter
-                            label="Email"
-                            value={openEnrich.email.value}
-                            confidence={openEnrich.email.confidence}
-                          />
-                          <ConfidenceMeter
-                            label="Phone"
-                            value={openEnrich.phone.value}
-                            confidence={openEnrich.phone.confidence}
-                          />
-                          <ConfidenceMeter
-                            label="Founded"
-                            value={openEnrich.yearFounded.value}
-                            confidence={openEnrich.yearFounded.confidence}
-                          />
-                          <ConfidenceMeter
-                            label="Services"
-                            value={openEnrich.services.value}
-                            confidence={openEnrich.services.confidence}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

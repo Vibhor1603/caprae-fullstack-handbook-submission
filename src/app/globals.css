@@ -162,8 +162,8 @@ body {
   padding: 0.55rem 1.1rem;
 }
 .btn-accent {
-  background: #22c55e;
-  color: #052e16;
+  background: #fbbf24;
+  color: #1a1408;
   padding: 0.55rem 1.1rem;
 }
 .btn-ghost {
@@ -177,7 +177,7 @@ body {
     background: #e8e9ed;
   }
   .btn-accent:hover:not(:disabled) {
-    background: #16a34a;
+    background: #f59e0b;
   }
   .btn-ghost:hover:not(:disabled) {
     color: #fff;
@@ -464,24 +464,15 @@ body {
 /* Unboxed fact rows — icon color does the work */
 .fact-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-}
-@media (min-width: 720px) {
-  .fact-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (min-width: 1100px) {
-  .fact-grid {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  column-gap: 1.25rem;
+  row-gap: 0;
 }
 .fact-row {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 0;
+  padding: 0.65rem 0;
   border-bottom: 1px solid var(--sq-border);
 }
 .fact-row .icon-well {

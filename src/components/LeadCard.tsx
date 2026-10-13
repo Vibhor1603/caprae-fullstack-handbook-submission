@@ -1,9 +1,11 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Workflow, Zap } from 'lucide-react'
 import type { ScoredLead } from '@/lib/scoring'
+import type { EnrichmentSnapshot } from '@/lib/enrichment'
 import { contactLine, factsFromLead } from '@/lib/leadDisplay'
 import { CompanyAvatar } from '@/components/CompanyAvatar'
+import { ConfidenceMeter } from '@/components/ConfidenceMeter'
 import { ReasonChips } from '@/components/ReasonChips'
 import { ScoreMeter } from '@/components/ScoreMeter'
 import { StatusBadge, TierBadge } from '@/components/StatusBadge'
@@ -14,6 +16,10 @@ type Props = {
   open: boolean
   onToggle: () => void
   index?: number
+  enrichment?: EnrichmentSnapshot | null
+  enriching?: boolean
+  onEnrich?: () => void
+  onRunAutomation?: () => void
 }
 
 function statusHint(l: ScoredLead) {
@@ -22,7 +28,16 @@ function statusHint(l: ScoredLead) {
   return null
 }
 
-export function LeadCard({ item, open, onToggle, index = 0 }: Props) {
+export function LeadCard({
+  item,
+  open,
+  onToggle,
+  index = 0,
+  enrichment,
+  enriching,
+  onEnrich,
+  onRunAutomation,
+}: Props) {
   const { lead, score, tier, reasons, junk, duplicateOf } = item
   const dimmed = junk || !!duplicateOf
   const facts = factsFromLead(lead)
@@ -70,7 +85,7 @@ export function LeadCard({ item, open, onToggle, index = 0 }: Props) {
 
       <div className="lead-card-panel">
         <div className="lead-card-panel-inner">
-          <div className="space-y-4 border-t border-[var(--sq-border)] px-5 pb-5 pt-3 sm:px-6">
+          <div className="space-y-5 border-t border-[var(--sq-border)] px-5 pb-5 pt-4 sm:px-6">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <p
                 className="fit-score shrink-0 font-mono text-[1.35rem] font-bold tabular-nums tracking-tight text-white"
@@ -127,10 +142,68 @@ export function LeadCard({ item, open, onToggle, index = 0 }: Props) {
 
             {!dimmed && reasons.length > 0 && (
               <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
+                <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
                   Why this score
                 </p>
                 <ReasonChips reasons={reasons} max={12} />
+              </div>
+            )}
+
+            {(onEnrich || onRunAutomation) && (
+              <div className="space-y-4 border-t border-[var(--sq-border)] pt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {onEnrich && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={enriching}
+                      onClick={e => {
+                        e.stopPropagation()
+                        onEnrich()
+                      }}
+                    >
+                      <Zap className="size-3.5" strokeWidth={1.75} />
+                      {enriching ? 'Enriching…' : 'Enrich from website'}
+                    </button>
+                  )}
+                  {onRunAutomation && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={e => {
+                        e.stopPropagation()
+                        onRunAutomation()
+                      }}
+                    >
+                      <Workflow className="size-3.5" strokeWidth={1.75} />
+                      Run automation
+                    </button>
+                  )}
+                </div>
+                {enrichment && (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <ConfidenceMeter
+                      label="Email"
+                      value={enrichment.email.value}
+                      confidence={enrichment.email.confidence}
+                    />
+                    <ConfidenceMeter
+                      label="Phone"
+                      value={enrichment.phone.value}
+                      confidence={enrichment.phone.confidence}
+                    />
+                    <ConfidenceMeter
+                      label="Founded"
+                      value={enrichment.yearFounded.value}
+                      confidence={enrichment.yearFounded.confidence}
+                    />
+                    <ConfidenceMeter
+                      label="Services"
+                      value={enrichment.services.value}
+                      confidence={enrichment.services.confidence}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -28,7 +28,7 @@ export function ScoreBreakdown({
             <span className="min-w-0 text-[var(--sq-text-secondary)]">{f.label}</span>
             <span
               className={`shrink-0 font-mono text-[12px] font-semibold tabular-nums ${
-                pos ? 'text-[#4ade80]' : 'text-sq-danger'
+                pos ? 'text-[#fbbf24]' : 'text-sq-danger'
               }`}
             >
               {pos ? '+' : ''}
