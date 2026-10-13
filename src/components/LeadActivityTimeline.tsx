@@ -59,7 +59,7 @@ export function LeadActivityTimeline({
         return (
           <li
             key={a.id || `${a.kind}-${a.createdAt}-${i}`}
-            className="flex gap-3 border-b border-[var(--sq-border)] py-2.5 last:border-0"
+            className="flex gap-3 py-2 first:pt-0"
           >
             <span
               className="icon-well icon-well-sm mt-0.5 shrink-0"

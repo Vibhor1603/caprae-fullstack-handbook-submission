@@ -550,26 +550,16 @@ button.kpi-stat-card:active {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
   column-gap: 1.25rem;
-  row-gap: 0;
+  row-gap: 0.15rem;
 }
 .fact-row {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--sq-border);
+  padding: 0.35rem 0;
 }
 .fact-row .icon-well {
   margin-top: 0.1rem;
-}
-.fact-grid > .fact-row:last-child {
-  border-bottom: none;
-}
-@media (min-width: 720px) {
-  .fact-row {
-    padding: 0.75rem 1rem 0.75rem 0;
-    border-bottom: 1px solid var(--sq-border);
-  }
 }
 .fact-row dt {
   font-size: 11px;

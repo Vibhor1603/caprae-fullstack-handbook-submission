@@ -1,6 +1,6 @@
 'use client'
 
-/** Compact confidence meter in an uplifted mini card. */
+/** Enriched field value + model confidence (0–100%), not fit score. */
 export function ConfidenceMeter({
   label,
   value,
@@ -12,20 +12,19 @@ export function ConfidenceMeter({
 }) {
   const pct = Math.round(Math.max(0, Math.min(1, confidence)) * 100)
   return (
-    <div className="min-w-0 rounded-[var(--radius-sm)] border border-[var(--sq-border)] bg-[var(--ash-850)] px-3.5 py-3">
+    <div
+      className="min-w-0 rounded-[var(--radius-xs)] bg-[var(--ash-900)]/80 px-3 py-2.5"
+      title={`${pct}% confidence — how likely this ${label.toLowerCase()} is correct after enrich (source quality, match on site, etc.).`}
+    >
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-[11px] font-medium text-[var(--sq-text-muted)]">{label}</p>
-        <p className="text-[10px] font-semibold tabular-nums text-[var(--sq-text-muted)]">{pct}%</p>
+        <p className="text-[10px] font-medium tabular-nums text-[var(--sq-text-secondary)]">
+          {pct}% sure
+        </p>
       </div>
-      <p className="mt-1.5 line-clamp-2 text-[13px] font-medium leading-snug tracking-tight text-white">
+      <p className="mt-1 line-clamp-2 text-[13px] font-medium leading-snug tracking-tight text-white">
         {value || '—'}
       </p>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-        <div
-          className="h-full rounded-full bg-[rgba(251,191,36,0.75)] transition-[width] duration-200"
-          style={{ width: `${Math.max(6, pct)}%` }}
-        />
-      </div>
     </div>
   )
 }

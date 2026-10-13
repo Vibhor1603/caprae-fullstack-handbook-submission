@@ -5,6 +5,7 @@ import type { ScoredLead } from '@/lib/scoring'
 import type { EnrichmentSnapshot } from '@/lib/enrichment'
 import { contactLine, factsFromLead } from '@/lib/leadDisplay'
 import { CompanyAvatar } from '@/components/CompanyAvatar'
+import { CollapsibleSection } from '@/components/CollapsibleSection'
 import { ConfidenceMeter } from '@/components/ConfidenceMeter'
 import { ReasonChips } from '@/components/ReasonChips'
 import { ScoreBreakdown } from '@/components/ScoreBreakdown'
@@ -31,6 +32,11 @@ function statusHint(l: ScoredLead) {
   if (l.duplicateOf) {return `Duplicate of ${l.duplicateOf}`}
   if (l.junk) {return l.junkReasons[0] || 'Junk'}
   return null
+}
+
+function scoreHint(item: ScoredLead): string {
+  const n = item.scoreBreakdown?.length || item.reasons.length
+  return n ? `${n} factors · fit ${item.score}/100` : `Fit ${item.score}/100`
 }
 
 export function LeadCard({
@@ -91,7 +97,7 @@ export function LeadCard({
 
       <div className="lead-card-panel">
         <div className="lead-card-panel-inner">
-          <div className="space-y-4 border-t border-[var(--sq-border)] px-5 pb-5 pt-4 sm:px-6">
+          <div className="space-y-3 border-t border-[var(--sq-border)] px-5 pb-5 pt-4 sm:px-6">
             <div className="lead-panel-block">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <p
@@ -109,6 +115,73 @@ export function LeadCard({
                 <p className="mt-3 text-sm font-medium text-sq-danger">{item.junkReasons.join(' · ')}</p>
               )}
             </div>
+
+            {(onEnrich || onRunAutomation || enrichment) && (
+              <div className="lead-panel-block space-y-3">
+                {(onEnrich || onRunAutomation) && (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {onEnrich && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost w-full sm:w-auto"
+                        disabled={enriching}
+                        onClick={e => {
+                          e.stopPropagation()
+                          onEnrich()
+                        }}
+                      >
+                        <Zap className="size-3.5" strokeWidth={1.75} />
+                        {enriching ? 'Enriching…' : 'Enrich from website'}
+                      </button>
+                    )}
+                    {onRunAutomation && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost w-full sm:w-auto"
+                        onClick={e => {
+                          e.stopPropagation()
+                          onRunAutomation()
+                        }}
+                      >
+                        <Workflow className="size-3.5" strokeWidth={1.75} />
+                        Run automation
+                      </button>
+                    )}
+                  </div>
+                )}
+                {enrichment && (
+                  <>
+                    <p className="text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
+                      Verified fields from enrich —{' '}
+                      <span className="text-[var(--sq-text-secondary)]">“% sure”</span> is confidence the
+                      value is correct (not your ICP fit score).
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <ConfidenceMeter
+                        label="Email"
+                        value={enrichment.email.value}
+                        confidence={enrichment.email.confidence}
+                      />
+                      <ConfidenceMeter
+                        label="Phone"
+                        value={enrichment.phone.value}
+                        confidence={enrichment.phone.confidence}
+                      />
+                      <ConfidenceMeter
+                        label="Founded"
+                        value={enrichment.yearFounded.value}
+                        confidence={enrichment.yearFounded.confidence}
+                      />
+                      <ConfidenceMeter
+                        label="Services"
+                        value={enrichment.services.value}
+                        confidence={enrichment.services.confidence}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {facts.length > 0 && (
               <div className="lead-panel-block">
@@ -145,87 +218,29 @@ export function LeadCard({
             )}
 
             {!dimmed && (item.scoreBreakdown?.length || reasons.length > 0) && (
-              <div className="lead-panel-block">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
-                  Why this score
-                </p>
+              <CollapsibleSection title="Why this score" hint={scoreHint(item)} defaultOpen={false}>
                 {item.scoreBreakdown?.length ? (
                   <ScoreBreakdown factors={item.scoreBreakdown} max={12} />
                 ) : (
                   <ReasonChips reasons={reasons} max={12} />
                 )}
-              </div>
+              </CollapsibleSection>
             )}
 
-            {(onEnrich || onRunAutomation || enrichment) && (
-              <div className="lead-panel-block space-y-4">
-                {(onEnrich || onRunAutomation) && (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    {onEnrich && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost w-full sm:w-auto"
-                        disabled={enriching}
-                        onClick={e => {
-                          e.stopPropagation()
-                          onEnrich()
-                        }}
-                      >
-                        <Zap className="size-3.5" strokeWidth={1.75} />
-                        {enriching ? 'Enriching…' : 'Enrich from website'}
-                      </button>
-                    )}
-                    {onRunAutomation && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost w-full sm:w-auto"
-                        onClick={e => {
-                          e.stopPropagation()
-                          onRunAutomation()
-                        }}
-                      >
-                        <Workflow className="size-3.5" strokeWidth={1.75} />
-                        Run automation
-                      </button>
-                    )}
-                  </div>
-                )}
-                {enrichment && (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <ConfidenceMeter
-                      label="Email"
-                      value={enrichment.email.value}
-                      confidence={enrichment.email.confidence}
-                    />
-                    <ConfidenceMeter
-                      label="Phone"
-                      value={enrichment.phone.value}
-                      confidence={enrichment.phone.confidence}
-                    />
-                    <ConfidenceMeter
-                      label="Founded"
-                      value={enrichment.yearFounded.value}
-                      confidence={enrichment.yearFounded.confidence}
-                    />
-                    <ConfidenceMeter
-                      label="Services"
-                      value={enrichment.services.value}
-                      confidence={enrichment.services.confidence}
-                    />
-                  </div>
-                )}
+            <CollapsibleSection
+              title="Recent history"
+              hint={
+                activities.length
+                  ? `${activities.length} event${activities.length === 1 ? '' : 's'}`
+                  : 'No interactions yet'
+              }
+              defaultOpen={false}
+            >
+              <LeadActivityTimeline activities={activities} max={6} />
+              <div className="mt-4 border-t border-[var(--sq-border)] pt-4">
+                <LeadCrmConnectStrip lead={item} />
               </div>
-            )}
-
-            <div className="lead-panel-block space-y-4">
-              <div>
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
-                  Recent history
-                </p>
-                <LeadActivityTimeline activities={activities} max={6} />
-              </div>
-              <LeadCrmConnectStrip lead={item} />
-            </div>
+            </CollapsibleSection>
           </div>
         </div>
       </div>
