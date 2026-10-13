@@ -89,7 +89,12 @@ export function buildFunnelReport(
   const clean = leads.filter(l => !l.junk && !l.duplicateOf)
   const steps: FunnelStep[] = FUNNEL_STAGES.map(stage => ({
     stage,
-    label: stage === 'new' ? 'Targets' : STAGE_LABELS[stage],
+    label:
+      stage === 'new'
+        ? 'In list'
+        : stage === 'enriched'
+          ? 'Looked up'
+          : STAGE_LABELS[stage],
     count: stage === 'new' ? clean.length : countReachedStage(clean, stage),
     conversionFromPrev: null as number | null,
   }))

@@ -209,20 +209,39 @@ export function TodayBoard({
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        {funnel.steps.slice(0, 3).map(step => (
-          <KpiStat
-            key={step.stage}
-            label={step.label}
-            value={step.count}
-            sub={
-              step.conversionFromPrev != null
-                ? `${step.conversionFromPrev}% from prior step`
-                : 'Pipeline entry'
-            }
-            subMuted={step.conversionFromPrev == null}
-            onClick={() => onNavigate({ tab: 'report' })}
-          />
-        ))}
+        {funnel.steps.slice(0, 3).map(step => {
+          const copy =
+            step.stage === 'new'
+              ? {
+                  label: 'In your list',
+                  sub: 'Clean leads after triage (not junk/dupes)',
+                }
+              : step.stage === 'enriched'
+                ? {
+                    label: 'Looked up',
+                    sub:
+                      step.conversionFromPrev != null
+                        ? `${step.conversionFromPrev}% of list — website details filled in`
+                        : 'Website details filled in',
+                  }
+                : {
+                    label: 'Contacted',
+                    sub:
+                      step.conversionFromPrev != null
+                        ? `${step.conversionFromPrev}% of looked-up — outreach started`
+                        : 'Outreach started',
+                  }
+          return (
+            <KpiStat
+              key={step.stage}
+              label={copy.label}
+              value={step.count}
+              sub={copy.sub}
+              subMuted={step.stage === 'new'}
+              onClick={() => onNavigate({ tab: 'report' })}
+            />
+          )
+        })}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
