@@ -162,9 +162,8 @@ export function LeadCard({
                         f.confidence != null && f.confidence > 0
                           ? Math.round(f.confidence * 100)
                           : null
-                      const wide = /email|linkedin|website|services|company/i.test(f.key)
                       return (
-                        <div key={f.key} className={`fact-row${wide ? ' fact-row--wide' : ''}`}>
+                        <div key={f.key} className="fact-row">
                           <span
                             className="icon-well icon-well-sm"
                             style={{ background: `${f.color}22`, color: f.color }}
@@ -176,7 +175,7 @@ export function LeadCard({
                             <div className="fact-row-head">
                               <dt>{f.label}</dt>
                               {pct != null ? (
-                                <span className="fact-conf" title="Confidence this value is correct">
+                                <span className="fact-conf" title="How reliable this field looks">
                                   {pct}% sure
                                 </span>
                               ) : null}

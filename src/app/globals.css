@@ -545,39 +545,42 @@ button.kpi-stat-card:active {
   min-height: 0;
 }
 
-/*
- * Fact profile strip — flex (not grid) so the last row grows into leftover
- * width instead of leaving empty tracks on the right. Wider min basis so
- * email/company don’t wrap mid-word (that was the “congested” feel).
- */
+/* Equal-column fact grid — columns stay aligned; long text clamps inside the cell */
 .fact-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 1.25rem;
   row-gap: 0.15rem;
+}
+@media (min-width: 720px) {
+  .fact-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1100px) {
+  .fact-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 .fact-row {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  box-sizing: border-box;
-  flex: 1 1 14rem;
-  min-width: min(100%, 14rem);
-  max-width: 100%;
+  min-width: 0;
   padding: 0.7rem 0;
-}
-.fact-row--wide {
-  flex: 1 1 18rem;
-  min-width: min(100%, 18rem);
 }
 .fact-row-head {
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
+  min-width: 0;
 }
 .fact-row-head dt {
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .fact-conf {
   flex-shrink: 0;
@@ -607,13 +610,9 @@ button.kpi-stat-card:active {
   line-height: 1.35;
   letter-spacing: -0.02em;
   color: #fff;
-  overflow-wrap: break-word;
-  word-break: normal;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Open-card fit: bigger mono number with a soft highlight, no ring */
