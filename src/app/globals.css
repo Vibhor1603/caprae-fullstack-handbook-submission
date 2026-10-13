@@ -567,6 +567,10 @@ button.kpi-stat-card:active {
   max-width: 100%;
   padding: 0.7rem 0;
 }
+.fact-row--wide {
+  flex: 1 1 18rem;
+  min-width: min(100%, 18rem);
+}
 .fact-row-head {
   display: flex;
   align-items: baseline;
@@ -600,11 +604,16 @@ button.kpi-stat-card:active {
   margin-top: 0.15rem;
   font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.35;
   letter-spacing: -0.02em;
   color: #fff;
+  overflow-wrap: break-word;
+  word-break: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Open-card fit: bigger mono number with a soft highlight, no ring */

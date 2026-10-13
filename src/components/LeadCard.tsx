@@ -162,8 +162,9 @@ export function LeadCard({
                         f.confidence != null && f.confidence > 0
                           ? Math.round(f.confidence * 100)
                           : null
+                      const wide = /email|linkedin|website|services|company/i.test(f.key)
                       return (
-                        <div key={f.key} className="fact-row">
+                        <div key={f.key} className={`fact-row${wide ? ' fact-row--wide' : ''}`}>
                           <span
                             className="icon-well icon-well-sm"
                             style={{ background: `${f.color}22`, color: f.color }}
