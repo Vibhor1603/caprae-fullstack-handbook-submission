@@ -3,10 +3,9 @@
 import { ChevronDown, Workflow, Zap } from 'lucide-react'
 import type { ScoredLead } from '@/lib/scoring'
 import type { EnrichmentSnapshot } from '@/lib/enrichment'
-import { contactLine, factsFromLead } from '@/lib/leadDisplay'
+import { contactLine, factsWithEnrichment } from '@/lib/leadDisplay'
 import { CompanyAvatar } from '@/components/CompanyAvatar'
 import { CollapsibleSection } from '@/components/CollapsibleSection'
-import { ConfidenceMeter } from '@/components/ConfidenceMeter'
 import { ReasonChips } from '@/components/ReasonChips'
 import { ScoreBreakdown } from '@/components/ScoreBreakdown'
 import { ScoreMeter } from '@/components/ScoreMeter'
@@ -52,7 +51,7 @@ export function LeadCard({
 }: Props) {
   const { lead, score, tier, reasons, junk, duplicateOf } = item
   const dimmed = junk || !!duplicateOf
-  const facts = factsFromLead(lead)
+  const facts = factsWithEnrichment(lead, enrichment)
   const company = lead.company?.trim() || 'Untitled company'
   const hint = statusHint(item)
 
@@ -116,7 +115,7 @@ export function LeadCard({
               )}
             </div>
 
-            {(onEnrich || onRunAutomation || enrichment) && (
+            {(facts.length > 0 || onEnrich || onRunAutomation) && (
               <div className="lead-panel-block space-y-3">
                 {(onEnrich || onRunAutomation) && (
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -150,61 +149,44 @@ export function LeadCard({
                   </div>
                 )}
                 {enrichment && (
-                  <>
-                    <p className="text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
-                      Verified fields from enrich —{' '}
-                      <span className="text-[var(--sq-text-secondary)]">“% sure”</span> is confidence the
-                      value is correct (not your ICP fit score).
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <ConfidenceMeter
-                        label="Email"
-                        value={enrichment.email.value}
-                        confidence={enrichment.email.confidence}
-                      />
-                      <ConfidenceMeter
-                        label="Phone"
-                        value={enrichment.phone.value}
-                        confidence={enrichment.phone.confidence}
-                      />
-                      <ConfidenceMeter
-                        label="Founded"
-                        value={enrichment.yearFounded.value}
-                        confidence={enrichment.yearFounded.confidence}
-                      />
-                      <ConfidenceMeter
-                        label="Services"
-                        value={enrichment.services.value}
-                        confidence={enrichment.services.confidence}
-                      />
-                    </div>
-                  </>
+                  <p className="text-[11px] leading-relaxed text-[var(--sq-text-muted)]">
+                    After enrich, <span className="text-[var(--sq-text-secondary)]">% sure</span> on a field
+                    is data confidence — not ICP fit.
+                  </p>
                 )}
-              </div>
-            )}
-
-            {facts.length > 0 && (
-              <div className="lead-panel-block">
-                <dl className="fact-grid">
-                  {facts.map(f => {
-                    const Icon = f.icon
-                    return (
-                      <div key={f.key} className="fact-row">
-                        <span
-                          className="icon-well icon-well-sm"
-                          style={{ background: `${f.color}22`, color: f.color }}
-                          aria-hidden
-                        >
-                          <Icon strokeWidth={1.75} />
-                        </span>
-                        <div className="min-w-0">
-                          <dt>{f.label}</dt>
-                          <dd>{f.value}</dd>
+                {facts.length > 0 && (
+                  <dl className="fact-grid">
+                    {facts.map(f => {
+                      const Icon = f.icon
+                      const pct =
+                        f.confidence != null && f.confidence > 0
+                          ? Math.round(f.confidence * 100)
+                          : null
+                      return (
+                        <div key={f.key} className="fact-row">
+                          <span
+                            className="icon-well icon-well-sm"
+                            style={{ background: `${f.color}22`, color: f.color }}
+                            aria-hidden
+                          >
+                            <Icon strokeWidth={1.75} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="fact-row-head">
+                              <dt>{f.label}</dt>
+                              {pct != null ? (
+                                <span className="fact-conf" title="Confidence this value is correct">
+                                  {pct}% sure
+                                </span>
+                              ) : null}
+                            </div>
+                            <dd className={f.key === 'services' ? 'line-clamp-2' : undefined}>{f.value}</dd>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </dl>
+                      )
+                    })}
+                  </dl>
+                )}
               </div>
             )}
 

@@ -14,6 +14,7 @@ import {
   User,
   Users,
 } from 'lucide-react'
+import type { EnrichmentSnapshot } from '@/lib/enrichment'
 import type { RawLead } from '@/lib/scoring'
 
 export type LeadFact = {
@@ -23,6 +24,8 @@ export type LeadFact = {
   icon: LucideIcon
   /** Apple-style: vivid icon color, not a peach wash on everything */
   color: string
+  /** Set when enrich ran — confidence the value is correct (0–1). */
+  confidence?: number
 }
 
 const KNOWN: { key: string; label: string; icon: LucideIcon; color: string }[] = [
@@ -97,6 +100,54 @@ export function factsFromLead(lead: RawLead): LeadFact[] {
     const style = styleForKey(key)
     out.push({ key, label: humanize(key), value: v, icon: style.icon, color: style.color })
     seen.add(key)
+  }
+
+  return out
+}
+
+const ENRICH_CONF_KEYS = ['email', 'phone', 'yearFounded'] as const
+
+/** Single profile grid: CSV facts plus enrich confidence inline (no duplicate blocks). */
+export function factsWithEnrichment(
+  lead: RawLead,
+  enrichment?: EnrichmentSnapshot | null,
+): LeadFact[] {
+  const facts = factsFromLead(lead)
+  if (!enrichment) {
+    return facts
+  }
+
+  const confByKey: Record<string, number> = {
+    email: enrichment.email.confidence,
+    phone: enrichment.phone.confidence,
+    yearFounded: enrichment.yearFounded.confidence,
+  }
+  const valueByKey: Record<string, string | null> = {
+    email: enrichment.email.value,
+    phone: enrichment.phone.value,
+    yearFounded: enrichment.yearFounded.value,
+  }
+
+  const out = facts.map(f => {
+    const enrichedVal = valueByKey[f.key]
+    const conf = confByKey[f.key]
+    return {
+      ...f,
+      value: enrichedVal?.trim() ? enrichedVal : f.value,
+      confidence: conf != null && conf > 0 ? conf : f.confidence,
+    }
+  })
+
+  const hasServices = out.some(f => f.key === 'services' || /services/i.test(f.key))
+  if (enrichment.services.value?.trim() && !hasServices) {
+    out.push({
+      key: 'services',
+      label: 'Services',
+      value: enrichment.services.value,
+      icon: Briefcase,
+      color: '#c084fc',
+      confidence: enrichment.services.confidence,
+    })
   }
 
   return out
