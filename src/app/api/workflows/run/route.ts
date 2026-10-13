@@ -14,6 +14,7 @@ async function recordReportEvents(
   results: NodeResult[],
   lead: ScoredLead,
   workflowId: string,
+  workflowName: string,
 ) {
   const company = String(lead.lead.company || lead.id)
 
@@ -85,6 +86,41 @@ async function recordReportEvents(
         },
       })
     }
+
+    if (result.type === 'action_notify') {
+      await prisma.reportEvent.create({
+        data: {
+          kind: 'notify',
+          summary: String(result.artifacts?.message || `Notify · ${company}`),
+          payload: JSON.stringify({ ...result.artifacts, leadId: lead.id, workflowId }),
+        },
+      })
+    }
+
+    if (result.type === 'action_move_stage') {
+      await prisma.reportEvent.create({
+        data: {
+          kind: 'stage_change',
+          summary: `${workflowName}: ${result.detail || `Stage change · ${company}`}`,
+          payload: JSON.stringify({
+            ...result.artifacts,
+            leadId: lead.id,
+            workflowId,
+            workflowName,
+          }),
+        },
+      })
+    }
+
+    if (result.type === 'action_enrich') {
+      await prisma.reportEvent.create({
+        data: {
+          kind: 'enrich',
+          summary: `Workflow enrich · ${company}`,
+          payload: JSON.stringify({ leadId: lead.id, workflowId }),
+        },
+      })
+    }
   }
 }
 
@@ -92,12 +128,22 @@ async function recordReportEvents(
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const lead = body.lead as ScoredLead
-    if (!lead?.id) {
+    const trigger = String(body.trigger || 'new_lead')
+    const lead = (body.lead || {
+      id: 'DIGEST',
+      lead: { company: 'Pipeline digest' },
+      score: 0,
+      tier: 'C',
+      reasons: [],
+      junk: false,
+      junkReasons: [],
+      whyNow: '',
+      tags: [],
+      stage: 'new',
+    }) as ScoredLead
+    if (!lead?.id && trigger !== 'schedule') {
       return NextResponse.json({ error: 'lead required' }, { status: 400 })
     }
-
-    const trigger = String(body.trigger || 'new_lead')
     const integrations = (body.integrations || {}) as IntegrationConfig
     const workflows = body.workflowId
       ? await prisma.workflow.findMany({ where: { id: String(body.workflowId), enabled: true } })
@@ -123,10 +169,12 @@ export async function POST(req: Request) {
       })
 
       try {
+        const mutableLead = structuredClone(lead) as ScoredLead
         const ctx: ExecContext = {
-          lead,
+          lead: mutableLead,
           trigger,
           prevTier: body.prevTier,
+          prevStage: body.prevStage,
           fieldConfidence: body.fieldConfidence,
           integrations,
           allowNetwork: true,
@@ -142,12 +190,12 @@ export async function POST(req: Request) {
           },
         })
 
-        await recordReportEvents(nodeResults, lead, workflow.id)
+        await recordReportEvents(nodeResults, mutableLead, workflow.id, workflow.name)
 
         await prisma.reportEvent.create({
           data: {
             kind: 'workflow_run',
-            summary: `${workflow.name}: ${finished.status} on ${lead.lead.company}`,
+            summary: `${workflow.name}: ${finished.status} on ${mutableLead.lead.company}`,
             payload: JSON.stringify({ runId: finished.id, trigger }),
           },
         })
@@ -157,6 +205,13 @@ export async function POST(req: Request) {
           nodeResults,
           workflowName: workflow.name,
           hadAction: graphHasSuccessfulAction(nodeResults),
+          leadPatch: {
+            stage: mutableLead.stage,
+            stageChangedAt: mutableLead.stageChangedAt,
+            tags: mutableLead.tags,
+            lead: mutableLead.lead,
+            profile: mutableLead.profile,
+          },
         })
       } catch (error) {
         const failed = await prisma.workflowRun.update({

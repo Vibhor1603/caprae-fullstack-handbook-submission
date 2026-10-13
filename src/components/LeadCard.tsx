@@ -7,6 +7,7 @@ import { CompanyAvatar } from '@/components/CompanyAvatar'
 import { ReasonChips } from '@/components/ReasonChips'
 import { ScoreMeter } from '@/components/ScoreMeter'
 import { StatusBadge, TierBadge } from '@/components/StatusBadge'
+import { StageBadge } from '@/components/StageSelect'
 
 type Props = {
   item: ScoredLead
@@ -44,6 +45,7 @@ export function LeadCard({ item, open, onToggle, index = 0 }: Props) {
               {company}
             </h3>
             {!open && <TierBadge tier={tier} />}
+            {!open && <StageBadge stage={item.stage} />}
             {!open && <StatusBadge item={item} />}
             {lead.industry ? (
               <span className="truncate text-[12px] font-medium text-[var(--sq-text-muted)]">
@@ -78,6 +80,7 @@ export function LeadCard({ item, open, onToggle, index = 0 }: Props) {
                 <span className="text-[0.85em] font-semibold text-[var(--sq-text-muted)]">/100</span>
               </p>
               <TierBadge tier={tier} />
+              <StageBadge stage={item.stage} />
               <StatusBadge item={item} />
               <span className="text-[11px] font-medium text-[var(--sq-text-muted)]">{item.id}</span>
             </div>

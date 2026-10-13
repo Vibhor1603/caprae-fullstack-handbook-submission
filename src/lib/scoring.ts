@@ -4,6 +4,8 @@
  * Pure functions, no I/O. Tunable ICP lives here.
  */
 import { isFuzzyCompanyMatch, normalizeCompany } from '@/lib/fuzzy'
+import type { LeadProfile } from '@/lib/profile'
+import type { PipelineStage } from '@/lib/pipeline'
 
 export interface RawLead {
   company?: string; website?: string; industry?: string; city?: string; state?: string; country?: string
@@ -11,6 +13,12 @@ export interface RawLead {
   email?: string; phone?: string; linkedin?: string; yearFounded?: string | number
   /** Extra CSV columns pass through for flexible display. */
   [key: string]: string | number | undefined
+}
+
+export type ScoreFactor = {
+  key: string
+  points: number
+  label: string
 }
 
 export interface Icp {
@@ -46,6 +54,14 @@ export interface ScoredLead {
   /** One-line acquisition timing narrative for searchers. */
   whyNow: string
   tags: string[]
+  /** Pipeline stage — New → … → Closed/Lost */
+  stage?: PipelineStage
+  stageChangedAt?: string
+  prevTier?: string
+  prevScore?: number
+  followUpAt?: string | null
+  scoreBreakdown?: ScoreFactor[]
+  profile?: LeadProfile
 }
 
 export interface TriageSummary {
@@ -153,60 +169,88 @@ export function scoreLead(
   l: RawLead,
   icp: Icp = DEFAULT_ICP,
   now = new Date(),
-): { score: number; reasons: string[]; whyNow: string } {
+): { score: number; reasons: string[]; whyNow: string; breakdown: ScoreFactor[] } {
   let score = 0
   const reasons: string[] = []
-  const add = (pts: number, why: string) => {
+  const breakdown: ScoreFactor[] = []
+  const add = (key: string, pts: number, why: string) => {
     score += pts
     reasons.push(`${pts >= 0 ? '+' : ''}${pts} ${why}`)
+    breakdown.push({ key, points: pts, label: why })
   }
 
   const ind = norm(l.industry)
-  if (ind && icp.industries.some(k => ind.includes(k))) {add(22, `Industry match (${l.industry})`)}
-  if (ind && STABLE_INDUSTRIES.some(k => ind.includes(k))) {add(6, 'Industry stability (services / essential)')}
+  if (ind && icp.industries.some(k => ind.includes(k))) {
+    add('industry', 22, `Industry match (${l.industry})`)
+  }
+  if (ind && STABLE_INDUSTRIES.some(k => ind.includes(k))) {
+    add('stability', 6, 'Industry stability (services / essential)')
+  }
 
-  if (icp.countries.includes(norm(l.country))) {add(10, 'In target geography')}
+  if (icp.countries.includes(norm(l.country))) {
+    add('geo', 10, 'In target geography')
+  }
 
   const emp = parseNumber(l.employees)
   if (emp !== null) {
-    if (emp >= icp.employees[0] && emp <= icp.employees[1]) {add(14, `Headcount ${emp} in size band`)}
-    else {add(-5, `Headcount ${emp} outside ${icp.employees.join('-')}`)}
+    if (emp >= icp.employees[0] && emp <= icp.employees[1]) {
+      add('employees', 14, `Headcount ${emp} in size band`)
+    } else {
+      add('employees', -5, `Headcount ${emp} outside ${icp.employees.join('-')}`)
+    }
   }
   const rev = parseNumber(l.revenue)
   if (rev !== null) {
-    if (rev >= icp.revenueUsd[0] && rev <= icp.revenueUsd[1]) {add(18, 'Revenue estimate in range')}
-    else {add(-5, 'Revenue estimate outside range')}
+    if (rev >= icp.revenueUsd[0] && rev <= icp.revenueUsd[1]) {
+      add('revenue', 18, 'Revenue estimate in range')
+    } else {
+      add('revenue', -5, 'Revenue estimate outside range')
+    }
   }
 
   const yr = parseNumber(l.yearFounded)
   const age = yr ? now.getFullYear() - yr : null
   if (age !== null && icp.minYearsInBusiness && age >= icp.minYearsInBusiness) {
-    add(8, `Established (${age} yrs)`)
+    add('established', 8, `Established (${age} yrs)`)
   }
   const successionCut = icp.successionYears ?? 15
-  if (age !== null && age >= successionCut) {add(10, `Succession window (${age} yrs in business)`)}
+  if (age !== null && age >= successionCut) {
+    add('succession_age', 10, `Succession window (${age} yrs in business)`)
+  }
 
   const title = norm(l.title)
   const founderLike = title && icp.decisionMakerTitles.some(t => title.includes(t))
-  if (founderLike) {add(10, 'Contact is a decision maker / owner')}
+  if (founderLike) {
+    add('decision_maker', 10, 'Contact is a decision maker / owner')
+  }
   const successorVisible = SUCCESSOR_HINT.test(String(l.ownerName || '')) || SUCCESSOR_HINT.test(title)
   if (founderLike && !successorVisible && age !== null && age >= successionCut) {
-    add(8, 'No visible successor on file')
+    add('no_successor', 8, 'No visible successor on file')
   }
 
   const email = norm(l.email)
   const free = isFreeMail(email)
-  if (email && EMAIL_RE.test(email) && !GENERIC_LOCAL.test(email) && !free) {add(5, 'Direct work email')}
-  if (free) {add(FREE_MAIL_PENALTY, 'Free-mail domain (enrich carefully)')}
+  if (email && EMAIL_RE.test(email) && !GENERIC_LOCAL.test(email) && !free) {
+    add('work_email', 5, 'Direct work email')
+  }
+  if (free) {
+    add('free_mail', FREE_MAIL_PENALTY, 'Free-mail domain (enrich carefully)')
+  }
 
-  if (normalizePhone(l.phone)) {add(3, 'Phone available')}
-  if (norm(l.linkedin)) {add(2, 'LinkedIn available')}
+  if (normalizePhone(l.phone)) {
+    add('phone', 3, 'Phone available')
+  }
+  if (norm(l.linkedin)) {
+    add('linkedin', 2, 'LinkedIn available')
+  }
 
   const capped = capReasons(reasons)
+  const whyNow = whyNowLine(l, icp, now)
   return {
     score: Math.max(0, Math.min(100, score)),
     reasons: capped,
-    whyNow: whyNowLine(l, icp, now),
+    whyNow,
+    breakdown,
   }
 }
 
@@ -239,7 +283,8 @@ export function triage(leads: RawLead[], icp: Icp = DEFAULT_ICP, now = new Date(
     if (!dupe) {winners.push({ id, company: lead.company, state: lead.state })}
 
     const jr = junkReasons(lead)
-    const { score, reasons, whyNow } = scoreLead(lead, icp, now)
+    const { score, reasons, whyNow, breakdown } = scoreLead(lead, icp, now)
+    const nowIso = now.toISOString()
     return {
       id,
       lead,
@@ -251,6 +296,9 @@ export function triage(leads: RawLead[], icp: Icp = DEFAULT_ICP, now = new Date(
       duplicateOf: dupe,
       whyNow,
       tags: [],
+      stage: 'new',
+      stageChangedAt: nowIso,
+      scoreBreakdown: breakdown,
     }
   })
   return out.sort((a, b) => Number(a.junk || !!a.duplicateOf) - Number(b.junk || !!b.duplicateOf) || b.score - a.score)
@@ -259,8 +307,16 @@ export function triage(leads: RawLead[], icp: Icp = DEFAULT_ICP, now = new Date(
 export function rescore(scored: ScoredLead[], icp: Icp, now = new Date()): ScoredLead[] {
   return scored
     .map(s => {
-      const { score, reasons, whyNow } = scoreLead(s.lead, icp, now)
-      return { ...s, score, tier: tierOf(score), reasons, whyNow }
+      const { score, reasons, whyNow, breakdown } = scoreLead(s.lead, icp, now)
+      return {
+        ...s,
+        score,
+        tier: tierOf(score),
+        reasons,
+        whyNow,
+        scoreBreakdown: breakdown,
+        stage: s.stage || 'new',
+      }
     })
     .sort((a, b) => Number(a.junk || !!a.duplicateOf) - Number(b.junk || !!b.duplicateOf) || b.score - a.score)
 }
@@ -291,6 +347,7 @@ export function toCrmRows(scored: ScoredLead[], opts?: { tier?: 'A' | 'B' | 'C' 
       Industry: s.lead.industry ?? '',
       'Lead score': s.score,
       'Lead tier': s.tier,
+      Stage: s.stage || 'new',
       'Why now': s.whyNow,
       'Score reasons': s.reasons.join('; '),
       Tags: (s.tags || []).join(', '),

@@ -19,13 +19,15 @@ import {
   type OnSelectionChangeParams,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Play, Power, Save } from 'lucide-react'
+import { Eraser, Play, Plus, Power, Save, Trash2 } from 'lucide-react'
 import {
-  DEFAULT_GRAPH,
+  EMPTY_GRAPH,
+  canAddNodeKind,
   defaultDataFor,
   executeWorkflow,
   isNodeKind,
   isValidConnection,
+  validateCanvasGraph,
   type NodeKind,
   type WorkflowGraph,
 } from '@/lib/workflow'
@@ -39,12 +41,16 @@ import {
   graphToFlowNodes,
   type SqNode,
 } from '@/components/automation/graphAdapters'
+import { TemplateGallery, type TemplateStatus } from '@/components/TemplateGallery'
+import { DEAL_TEMPLATES, type TemplateKey } from '@/lib/templates'
 
 export type WorkflowRecord = {
   id: string
   name: string
   enabled: boolean
   graph: WorkflowGraph
+  templateKey?: string | null
+  isTemplate?: boolean
 }
 
 type CanvasProps = {
@@ -55,6 +61,7 @@ type CanvasProps = {
 function CanvasInner({ onSaved, integrations }: CanvasProps) {
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
   const [saving, setSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -66,17 +73,113 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
     subject: string
     body: string
   } | null>(null)
+  const [dirty, setDirty] = useState(false)
+  const [templateBusy, setTemplateBusy] = useState<string | null>(null)
 
   const hasFittedView = useRef(false)
   const { fitView, screenToFlowPosition } = useReactFlow()
 
+  const templateStatus: TemplateStatus[] = useMemo(
+    () =>
+      DEAL_TEMPLATES.map(t => {
+        const match = workflows.find(w => w.templateKey === t.key)
+        return {
+          key: t.key,
+          installed: !!match,
+          enabled: !!match?.enabled,
+          workflowId: match?.id,
+        }
+      }),
+    [workflows],
+  )
+
+  async function addTemplate(key: TemplateKey) {
+    const tpl = DEAL_TEMPLATES.find(t => t.key === key)
+    if (!tpl) {
+      return
+    }
+    setTemplateBusy(key)
+    try {
+      const response = await fetch('/api/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: tpl.name,
+          graph: tpl.graph,
+          enabled: true,
+          templateKey: tpl.key,
+          isTemplate: true,
+        }),
+      })
+      const payload = await response.json()
+      if (response.ok && payload.workflow) {
+        const wf = payload.workflow as WorkflowRecord
+        setWorkflows(prev => [wf, ...prev.filter(w => w.templateKey !== key)])
+        setActiveId(wf.id)
+        setDraftName(wf.name)
+        loadGraphOntoCanvas(wf.graph)
+        onSaved?.(wf)
+      } else {
+        setStatusMessage(payload.error || 'Could not add template')
+      }
+    } finally {
+      setTemplateBusy(null)
+    }
+  }
+
+  async function toggleTemplate(key: TemplateKey, enabled: boolean) {
+    const match = workflows.find(w => w.templateKey === key)
+    if (!match) {
+      return
+    }
+    setTemplateBusy(key)
+    try {
+      const response = await fetch('/api/workflows', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: match.id, enabled }),
+      })
+      const payload = await response.json()
+      if (response.ok && payload.workflow) {
+        setWorkflows(prev =>
+          prev.map(w => (w.id === match.id ? { ...w, enabled } : w)),
+        )
+        onSaved?.(payload.workflow)
+      }
+    } finally {
+      setTemplateBusy(null)
+    }
+  }
+
   const activeWorkflow = useMemo(
-    () => workflows.find(workflow => workflow.id === activeId) || workflows[0],
+    () => workflows.find(workflow => workflow.id === activeId) || workflows[0] || null,
     [workflows, activeId],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState<SqNode>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  const loadGraphOntoCanvas = useCallback(
+    (graph: WorkflowGraph) => {
+      const flow = graphToFlowNodes(graph || EMPTY_GRAPH)
+      setNodes(flow.nodes)
+      setEdges(flow.edges)
+      setSelectedId(null)
+      setModalOpen(false)
+      setDryRunLog(null)
+      setDraftPreview(null)
+      setDirty(false)
+      hasFittedView.current = false
+
+      requestAnimationFrame(() => {
+        if (!hasFittedView.current) {
+          fitView({ padding: 0.36, duration: 280, maxZoom: 0.85 })
+          hasFittedView.current = true
+        }
+      })
+    },
+    [fitView, setEdges, setNodes],
+  )
 
   useEffect(() => {
     void (async () => {
@@ -86,6 +189,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
       setWorkflows(list)
       if (list[0]) {
         setActiveId(list[0].id)
+        setDraftName(list[0].name)
       }
     })()
   }, [])
@@ -95,23 +199,8 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
       return
     }
 
-    const flow = graphToFlowNodes(activeWorkflow.graph || DEFAULT_GRAPH)
-    setNodes(flow.nodes)
-    setEdges(flow.edges)
-    setSelectedId(null)
-    setModalOpen(false)
-    setDryRunLog(null)
-    setDraftPreview(null)
-    hasFittedView.current = false
-
-    const frame = requestAnimationFrame(() => {
-      if (!hasFittedView.current) {
-        fitView({ padding: 0.36, duration: 280, maxZoom: 0.85 })
-        hasFittedView.current = true
-      }
-    })
-
-    return () => cancelAnimationFrame(frame)
+    setDraftName(activeWorkflow.name)
+    loadGraphOntoCanvas(activeWorkflow.graph)
     // Reload graph only when switching workflows — not on every node edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkflow?.id])
@@ -121,8 +210,46 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
     [nodes, selectedId],
   )
 
+  const disabledKinds = useMemo(() => {
+    const blocked: Partial<Record<NodeKind, string>> = {}
+    const triggerCheck = canAddNodeKind('trigger', nodes.map(node => ({ type: node.data.kind })))
+    if (!triggerCheck.ok) {
+      blocked.trigger = triggerCheck.reason
+    }
+    return blocked
+  }, [nodes])
+
+  const markDirtyNodes = useCallback(
+    (changes: Parameters<typeof onNodesChange>[0]) => {
+      if (changes.some(change => change.type !== 'select')) {
+        setDirty(true)
+      }
+      onNodesChange(changes)
+    },
+    [onNodesChange],
+  )
+
+  const markDirtyEdges = useCallback(
+    (changes: Parameters<typeof onEdgesChange>[0]) => {
+      if (changes.some(change => change.type !== 'select')) {
+        setDirty(true)
+      }
+      onEdgesChange(changes)
+    },
+    [onEdgesChange],
+  )
+
   const placeNode = useCallback(
     (kind: NodeKind, position: { x: number; y: number }) => {
+      const check = canAddNodeKind(
+        kind,
+        nodes.map(node => ({ type: node.data.kind })),
+      )
+      if (!check.ok) {
+        setStatusMessage(check.reason)
+        return
+      }
+
       const id = `${kind}_${Date.now().toString(36)}`
       const defaults = defaultDataFor(kind)
       const node: SqNode = {
@@ -140,9 +267,10 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
       setNodes(current => [...current, node])
       setSelectedId(id)
       setModalOpen(true)
+      setDirty(true)
       setStatusMessage(`Added ${KIND_META[kind].label}`)
     },
-    [setNodes],
+    [nodes, setNodes],
   )
 
   const onDragOver = useCallback((event: DragEvent) => {
@@ -216,6 +344,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
           current,
         ),
       )
+      setDirty(true)
       setStatusMessage(null)
     },
     [canConnect, setEdges],
@@ -245,6 +374,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
           node.id === selectedId ? { ...node, data: { ...node.data, ...patch } } : node,
         ),
       )
+      setDirty(true)
     },
     [selectedId, setNodes],
   )
@@ -259,10 +389,123 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
     setEdges(current => current.filter(edge => edge.source !== id && edge.target !== id))
     setSelectedId(null)
     setModalOpen(false)
+    setDirty(true)
   }, [selectedId, setNodes, setEdges])
+
+  function confirmDiscardIfDirty(): boolean {
+    if (!dirty) {
+      return true
+    }
+    return window.confirm('Discard unsaved changes on this canvas?')
+  }
+
+  function switchWorkflow(nextId: string) {
+    if (nextId === activeId) {
+      return
+    }
+    if (!confirmDiscardIfDirty()) {
+      return
+    }
+    setActiveId(nextId)
+    setStatusMessage(null)
+  }
+
+  function clearCanvas() {
+    if (nodes.length === 0 && edges.length === 0) {
+      setStatusMessage('Canvas is already empty')
+      return
+    }
+    if (!window.confirm('Clear this canvas? Nodes and links will be removed (Save to persist).')) {
+      return
+    }
+    setNodes([])
+    setEdges([])
+    setSelectedId(null)
+    setModalOpen(false)
+    setDryRunLog(null)
+    setDraftPreview(null)
+    setDirty(true)
+    setStatusMessage('Canvas cleared — Save to keep it empty')
+  }
+
+  async function createAutomation() {
+    if (!confirmDiscardIfDirty()) {
+      return
+    }
+
+    setSaving(true)
+    setStatusMessage(null)
+    try {
+      const response = await fetch('/api/workflows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Automation ${workflows.length + 1}`,
+          graph: EMPTY_GRAPH,
+          enabled: true,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Could not create automation')
+      }
+
+      setWorkflows(current => [payload.workflow, ...current])
+      setActiveId(payload.workflow.id)
+      setDraftName(payload.workflow.name)
+      onSaved?.(payload.workflow)
+      setStatusMessage('New blank automation — add one trigger, then Save')
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Create failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteAutomation() {
+    if (!activeWorkflow) {
+      return
+    }
+    if (workflows.length <= 1) {
+      setStatusMessage('Keep at least one automation canvas')
+      return
+    }
+    if (!window.confirm(`Delete “${activeWorkflow.name}”? This cannot be undone.`)) {
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch('/api/workflows', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: activeWorkflow.id }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload.error || 'Delete failed')
+      }
+
+      const next = workflows.filter(workflow => workflow.id !== activeWorkflow.id)
+      setWorkflows(next)
+      setActiveId(next[0]?.id ?? null)
+      setStatusMessage('Automation deleted')
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Delete failed')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function saveWorkflow() {
     if (!activeWorkflow) {
+      return
+    }
+
+    const graph = flowNodesToGraph(nodes, edges)
+    const check = validateCanvasGraph(graph)
+    if (!check.ok) {
+      setStatusMessage(check.reason)
       return
     }
 
@@ -270,7 +513,6 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
     setStatusMessage(null)
 
     try {
-      const graph = flowNodesToGraph(nodes, edges)
       const response = await fetch('/api/workflows', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -278,7 +520,7 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
           id: activeWorkflow.id,
           graph,
           enabled: activeWorkflow.enabled,
-          name: activeWorkflow.name,
+          name: draftName.trim() || activeWorkflow.name,
         }),
       })
       const payload = await response.json()
@@ -289,8 +531,10 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
       setWorkflows(current =>
         current.map(workflow => (workflow.id === payload.workflow.id ? payload.workflow : workflow)),
       )
+      setDraftName(payload.workflow.name)
+      setDirty(false)
       onSaved?.(payload.workflow)
-      setStatusMessage('Workflow saved')
+      setStatusMessage('Automation saved')
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : 'Save failed')
     } finally {
@@ -351,20 +595,81 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
 
   return (
     <div className="space-y-3">
+      <TemplateGallery
+        status={templateStatus}
+        busyKey={templateBusy}
+        onAdd={key => void addTemplate(key)}
+        onToggle={(key, enabled) => void toggleTemplate(key, enabled)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--sq-text-muted)]">
             Automation
           </p>
           <h2 className="text-lg font-semibold tracking-tight text-white">
-            {activeWorkflow?.name || 'Deal-sourcing autopilot'}
+            {draftName || activeWorkflow?.name || 'Deal-sourcing autopilot'}
           </h2>
           <p className="mt-0.5 max-w-xl text-[12px] leading-relaxed text-[var(--sq-text-muted)]">
-            When a scored lead lands, gate on ICP fit, draft outreach (never sent), push a CRM/Sheets
-            row, branch HTTP on 2xx vs fail, and queue the weekly pulse — click any node to edit.
+            One trigger and one automation per canvas. Add a deal template above, or build your own —
+            drafts are never sent.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="sq-wf-select"
+            aria-label="Active automation"
+            value={activeWorkflow?.id || ''}
+            onChange={event => switchWorkflow(event.target.value)}
+            disabled={!workflows.length}
+          >
+            {workflows.map(workflow => (
+              <option key={workflow.id} value={workflow.id}>
+                {workflow.name}
+                {workflow.enabled ? '' : ' (off)'}
+              </option>
+            ))}
+          </select>
+          <input
+            className="sq-wf-name"
+            aria-label="Automation name"
+            value={draftName}
+            onChange={event => {
+              setDraftName(event.target.value)
+              setDirty(true)
+            }}
+            placeholder="Automation name"
+            disabled={!activeWorkflow}
+          />
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => void createAutomation()}
+            disabled={saving}
+            title="Create a new blank canvas"
+          >
+            <Plus className="size-3.5" strokeWidth={1.75} />
+            New
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={clearCanvas}
+            disabled={!activeWorkflow}
+            title="Remove all nodes from this canvas"
+          >
+            <Eraser className="size-3.5" strokeWidth={1.75} />
+            Clear
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => void deleteAutomation()}
+            disabled={saving || workflows.length <= 1}
+            title="Delete this automation"
+          >
+            <Trash2 className="size-3.5" strokeWidth={1.75} />
+            Delete
+          </button>
           <button type="button" className="btn btn-ghost" onClick={() => void runDryTest('new_lead')}>
             <Play className="size-3.5" strokeWidth={1.75} />
             Test
@@ -389,20 +694,20 @@ function CanvasInner({ onSaved, integrations }: CanvasProps) {
             disabled={saving || !activeWorkflow}
           >
             <Save className="size-3.5" strokeWidth={1.75} />
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : dirty ? 'Save*' : 'Save'}
           </button>
         </div>
       </div>
 
       <div className="sq-automate-layout">
-        <Palette onClickAdd={addNodeFromPalette} />
+        <Palette onClickAdd={addNodeFromPalette} disabledKinds={disabledKinds} />
         <div className="sq-automate-main sq-automate-main--solo">
           <div className="sq-flow-shell panel overflow-hidden">
             <ReactFlow
               nodes={nodes}
               edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
+              onNodesChange={markDirtyNodes}
+              onEdgesChange={markDirtyEdges}
               onConnect={onConnect}
               onDrop={onDrop}
               onDragOver={onDragOver}

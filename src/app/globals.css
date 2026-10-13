@@ -643,6 +643,50 @@ input[type='file'].sr-file {
   transform: scale(0.98);
 }
 
+.sq-palette-card--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.sq-palette-card--disabled:hover,
+.sq-palette-card--disabled:active {
+  background: var(--ash-900);
+  border-color: var(--sq-border);
+  transform: none;
+  cursor: not-allowed;
+}
+
+.sq-wf-select {
+  min-width: 11rem;
+  max-width: 16rem;
+  height: 2rem;
+  padding: 0 0.65rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--sq-border);
+  background: var(--ash-900);
+  color: var(--ash-100);
+  font-size: 12px;
+}
+
+.sq-wf-name {
+  min-width: 10rem;
+  max-width: 14rem;
+  height: 2rem;
+  padding: 0 0.65rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--sq-border);
+  background: var(--ash-900);
+  color: var(--ash-100);
+  font-size: 12px;
+}
+
+.sq-wf-name:focus,
+.sq-wf-select:focus {
+  outline: none;
+  border-color: var(--sq-border-strong);
+}
+
 .sq-palette-card-icon {
   grid-row: 1 / span 2;
   display: inline-flex;

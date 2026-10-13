@@ -2,10 +2,14 @@
  * Visual metadata for workflow node kinds (palette + canvas nodes).
  */
 import {
+  Bell,
   Database,
   FileBarChart,
   Filter,
   Mail,
+  ArrowRightLeft,
+  Sparkles,
+  Tag,
   Webhook,
   Zap,
   type LucideIcon,
@@ -27,8 +31,12 @@ export type KindMeta = {
 export const KIND_META: Record<NodeKind, KindMeta> = {
   trigger: { label: 'Trigger', tone: '#60a5fa', group: 'trigger', Icon: Zap },
   condition: { label: 'Condition', tone: '#fbbf24', group: 'condition', Icon: Filter },
+  action_enrich: { label: 'Enrich', tone: '#a78bfa', group: 'action', Icon: Sparkles },
   action_draft_email: { label: 'Draft email', tone: '#4ade80', group: 'action', Icon: Mail },
+  action_move_stage: { label: 'Move stage', tone: '#f472b6', group: 'action', Icon: ArrowRightLeft },
   action_crm_push: { label: 'CRM / Sheets', tone: '#34d399', group: 'action', Icon: Database },
+  action_notify: { label: 'Notify', tone: '#fb923c', group: 'action', Icon: Bell },
+  action_tag: { label: 'Tag', tone: '#94a3b8', group: 'action', Icon: Tag },
   action_http: { label: 'HTTP / Webhook', tone: '#38bdf8', group: 'action', Icon: Webhook },
   action_weekly_report: { label: 'Weekly report', tone: '#a3a3a3', group: 'action', Icon: FileBarChart },
 }
@@ -63,6 +71,8 @@ export const SAMPLE_LEAD: ScoredLead = {
   junkReasons: [],
   whyNow: '31-yr HVAC with long-tenured owner — succession window.',
   tags: [],
+  stage: 'new',
+  stageChangedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
 }
 
 const OP_SYMBOL: Record<string, string> = {
@@ -82,6 +92,12 @@ export function subtitleForNode(data: NodeData): string {
     }
     if (event === 'field_updated') {
       return 'After enrich'
+    }
+    if (event === 'stage_changed') {
+      return 'Stage change'
+    }
+    if (event === 'schedule') {
+      return 'Schedule'
     }
     return 'New lead'
   }
@@ -103,6 +119,22 @@ export function subtitleForNode(data: NodeData): string {
 
   if (data.kind === 'action_draft_email') {
     return 'never sent'
+  }
+
+  if (data.kind === 'action_move_stage') {
+    return String(data.stage || 'contacted')
+  }
+
+  if (data.kind === 'action_notify') {
+    return 'in-app'
+  }
+
+  if (data.kind === 'action_tag') {
+    return String(data.tag || 'tag')
+  }
+
+  if (data.kind === 'action_enrich') {
+    return 'ethical crawl'
   }
 
   return ''

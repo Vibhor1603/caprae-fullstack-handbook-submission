@@ -21,20 +21,42 @@ model ImportRun {
 }
 
 model Lead {
-  id           String    @id @default(cuid())
-  runId        String
-  run          ImportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  company      String
-  score        Int
-  tier         String
-  junk         Boolean
-  duplicateOf  String?
-  reasons      String // JSON array
-  raw          String // JSON of original row
-  whyNow       String?
-  tags         String    @default("[]") // JSON string[]
-  enrichment   String? // JSON EnrichmentSnapshot
-  lastVerified DateTime?
+  id              String    @id @default(cuid())
+  runId           String
+  run             ImportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  company         String
+  score           Int
+  tier            String
+  junk            Boolean
+  duplicateOf     String?
+  reasons         String // JSON array
+  raw             String // JSON of original row
+  whyNow          String?
+  tags            String    @default("[]") // JSON string[]
+  enrichment      String? // JSON EnrichmentSnapshot
+  lastVerified    DateTime?
+  stage           String    @default("new")
+  stageChangedAt  DateTime?
+  prevTier        String?
+  prevScore       Int?
+  profile         String? // JSON LeadProfile
+  scoreBreakdown  String? // JSON ScoreFactor[]
+  followUpAt      DateTime?
+  updatedAt       DateTime  @default(now()) @updatedAt
+  activities      LeadActivity[]
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  kind      String
+  summary   String
+  payload   String   @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([createdAt])
 }
 
 model EnrichmentCache {
@@ -47,13 +69,17 @@ model EnrichmentCache {
 }
 
 model Workflow {
-  id        String        @id @default(cuid())
-  name      String
-  enabled   Boolean       @default(true)
-  graph     String // JSON { nodes, edges }
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  runs      WorkflowRun[]
+  id          String        @id @default(cuid())
+  name        String
+  enabled     Boolean       @default(true)
+  graph       String // JSON { nodes, edges }
+  templateKey String?
+  isTemplate  Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  runs        WorkflowRun[]
+
+  @@index([templateKey])
 }
 
 model WorkflowRun {
@@ -72,7 +98,7 @@ model WorkflowRun {
 
 model ReportEvent {
   id        String   @id @default(cuid())
-  kind      String // a_tier | workflow_run | crm_push | enrich
+  kind      String // a_tier | workflow_run | crm_push | enrich | stage_change | notify …
   summary   String
   payload   String   @default("{}")
   createdAt DateTime @default(now())

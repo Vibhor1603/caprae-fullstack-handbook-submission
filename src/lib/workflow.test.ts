@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
   DEFAULT_GRAPH,
+  canAddNodeKind,
+  countTriggers,
   defaultDataFor,
   executeWorkflow,
   graphHasSuccessfulAction,
   isNodeKind,
   isValidConnection,
   sanitizeGraph,
+  validateCanvasGraph,
   type ExecContext,
   type NodeKind,
   type WorkflowGraph,
@@ -52,6 +55,23 @@ describe('isNodeKind / topology', () => {
     expect(isValidConnection('condition', 'action_draft_email')).toBe(true)
     expect(isValidConnection('action_crm_push', 'trigger')).toBe(false)
   })
+
+  it('allows only one trigger per canvas', () => {
+    expect(countTriggers([{ type: 'trigger' }])).toBe(1)
+    expect(canAddNodeKind('trigger', [])).toEqual({ ok: true })
+    expect(canAddNodeKind('trigger', [{ type: 'trigger' }]).ok).toBe(false)
+    expect(canAddNodeKind('condition', [{ type: 'trigger' }])).toEqual({ ok: true })
+    expect(
+      validateCanvasGraph({
+        nodes: [
+          { id: 't1', type: 'trigger', position: { x: 0, y: 0 }, data: {} },
+          { id: 't2', type: 'trigger', position: { x: 1, y: 0 }, data: {} },
+        ],
+        edges: [],
+      }).ok,
+    ).toBe(false)
+    expect(validateCanvasGraph(DEFAULT_GRAPH).ok).toBe(true)
+  })
 })
 
 describe('interpolate', () => {
@@ -83,7 +103,7 @@ describe('sanitizeGraph', () => {
       ],
     }
     const clean = sanitizeGraph(dirty)
-    expect(clean.nodes.map(n => n.type)).toEqual(['trigger', 'condition'])
+    expect(clean.nodes.map(n => n.type)).toEqual(['trigger', 'condition', 'action_tag'])
     expect(clean.edges).toHaveLength(1)
     expect(clean.nodes[0].data.event).toBe('new_lead')
     expect(clean.nodes[1].data.field).toBe('tier')

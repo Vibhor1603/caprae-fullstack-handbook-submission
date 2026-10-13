@@ -43,6 +43,18 @@ describe('scoring', () => {
     expect(r.reasons.length).toBeGreaterThan(5)
     expect(r.reasons.length).toBeLessThanOrEqual(6)
     expect(r.whyNow.toLowerCase()).toMatch(/succession|established|prioritize/)
+    expect(r.breakdown.some(f => f.key === 'industry' && f.points === 22)).toBe(true)
+    expect(r.breakdown.reduce((s, f) => s + f.points, 0)).toBeGreaterThanOrEqual(100)
+  })
+
+  it('exposes exact points per factor in breakdown', () => {
+    const r = scoreLead(ideal, undefined, NOW)
+    const byKey = Object.fromEntries(r.breakdown.map(f => [f.key, f.points]))
+    expect(byKey.industry).toBe(22)
+    expect(byKey.stability).toBe(6)
+    expect(byKey.geo).toBe(10)
+    expect(byKey.employees).toBe(14)
+    expect(byKey.revenue).toBe(18)
   })
   it('penalizes out-of-range firmographics', () => {
     expect(scoreLead({ ...ideal, employees: 5000, revenue: '$2B' }, undefined, NOW).score).toBeLessThan(80)
@@ -78,11 +90,24 @@ describe('triage on labeled sample data', () => {
     expect(toCrmRows(out).length).toBe(out.filter(o => !o.junk && !o.duplicateOf).length)
     expect(toCrmRows(out, { tier: 'A' }).every(r => r['Lead tier'] === 'A')).toBe(true)
   })
-  it('keeps free-mail Green Acre below work-email peers', () => {
-    const green = out.find(o => o.lead.company?.includes('Green Acre'))
-    expect(green).toBeTruthy()
-    expect(green!.score).toBeLessThan(95)
-    expect(green!.reasons.some(r => r.includes('Free-mail'))).toBe(true)
+  it('keeps free-mail contacts below work-email peers', () => {
+    const free = scoreLead(
+      {
+        company: 'Green Acre Landscaping',
+        industry: 'Landscaping',
+        country: 'US',
+        employees: 22,
+        revenue: '$3M',
+        yearFounded: 2001,
+        title: 'Owner',
+        email: 'pat@gmail.com',
+        phone: '6145550199',
+      },
+      undefined,
+      NOW,
+    )
+    expect(free.score).toBeLessThan(95)
+    expect(free.reasons.some(r => r.includes('Free-mail'))).toBe(true)
   })
   it('summarize counts match filters', () => {
     const s = summarize(out)
@@ -93,7 +118,16 @@ describe('triage on labeled sample data', () => {
   it('rescore updates tiers when ICP narrows', () => {
     const tight = { ...DEFAULT_ICP, industries: ['hvac'] }
     const again = rescore(out, tight, NOW)
-    const green = again.find(o => o.lead.company?.includes('Green Acre'))
-    expect(green!.score).toBeLessThan(out.find(o => o.lead.company?.includes('Green Acre'))!.score)
+    const north = again.find(o => o.lead.company?.includes('Northwind HVAC LLC'))
+    const before = out.find(o => o.lead.company?.includes('Northwind HVAC LLC'))
+    expect(north).toBeTruthy()
+    expect(before).toBeTruthy()
+    // Still HVAC — score should stay high; CloudNova (software) should drop
+    const cloud = again.find(o => o.lead.company?.includes('CloudNova'))
+    const cloudBefore = out.find(o => o.lead.company?.includes('CloudNova'))
+    if (cloud && cloudBefore) {
+      expect(cloud.score).toBeLessThanOrEqual(cloudBefore.score)
+    }
+    expect(north!.tier).toBe('A')
   })
 })

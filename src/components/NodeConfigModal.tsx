@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react'
 import { INTERPOLATION_TOKENS } from '@/lib/interpolate'
+import { PIPELINE_STAGES, STAGE_LABELS } from '@/lib/pipeline'
 import type { NodeKind } from '@/lib/workflow'
 
 export type NodeData = Record<string, string | number | boolean | undefined> & {
@@ -16,12 +17,18 @@ const LABELS: Record<NodeKind, string> = {
   action_crm_push: 'CRM / Sheets',
   action_http: 'HTTP / Webhook',
   action_weekly_report: 'Weekly report',
+  action_enrich: 'Enrich',
+  action_move_stage: 'Move stage',
+  action_notify: 'Notify',
+  action_tag: 'Tag',
 }
 
 const TRIGGER_EVENTS = [
   { id: 'new_lead', label: 'New lead ingested' },
   { id: 'field_updated', label: 'After enrich / field update' },
   { id: 'tier_changed', label: 'Tier changed' },
+  { id: 'stage_changed', label: 'Stage changed' },
+  { id: 'schedule', label: 'On schedule' },
 ] as const
 
 const CONDITION_FIELDS = [
@@ -30,6 +37,8 @@ const CONDITION_FIELDS = [
   { id: 'industry', label: 'Industry', ops: ['contains', 'eq'] },
   { id: 'state', label: 'State', ops: ['eq', 'neq'] },
   { id: 'confidence', label: 'Enrich confidence', ops: ['gte', 'lte'] },
+  { id: 'stage', label: 'Pipeline stage', ops: ['eq', 'neq'] },
+  { id: 'days_in_stage', label: 'Days in stage', ops: ['gte', 'lte', 'eq'] },
 ] as const
 
 const OP_LABELS: Record<string, string> = {
@@ -53,7 +62,9 @@ export function NodeConfigModal({
   onClose: () => void
   onDelete: () => void
 }) {
-  if (!open || !data) {return null}
+  if (!open || !data) {
+    return null
+  }
   const kind = data.kind
   const fieldMeta = CONDITION_FIELDS.find(f => f.id === String(data.field || 'tier')) || CONDITION_FIELDS[0]
   const ops = fieldMeta.ops
@@ -121,6 +132,23 @@ export function NodeConfigModal({
                   </select>
                 </label>
               )}
+              {String(data.event) === 'stage_changed' && (
+                <label className="sq-field">
+                  <span>Target stage (optional)</span>
+                  <select
+                    className="field"
+                    value={String(data.stage || '')}
+                    onChange={e => onChange({ stage: e.target.value })}
+                  >
+                    <option value="">Any stage</option>
+                    {PIPELINE_STAGES.map(s => (
+                      <option key={s} value={s}>
+                        {STAGE_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </>
           )}
 
@@ -136,7 +164,17 @@ export function NodeConfigModal({
                     const meta = CONDITION_FIELDS.find(f => f.id === field) || CONDITION_FIELDS[0]
                     const op = meta.ops[0]
                     const value =
-                      field === 'tier' ? 'A' : field === 'score' ? 70 : field === 'confidence' ? 0.5 : ''
+                      field === 'tier'
+                        ? 'A'
+                        : field === 'score'
+                          ? 70
+                          : field === 'confidence'
+                            ? 0.5
+                            : field === 'stage'
+                              ? 'contacted'
+                              : field === 'days_in_stage'
+                                ? 5
+                                : ''
                     onChange({
                       field,
                       op,
@@ -191,21 +229,39 @@ export function NodeConfigModal({
                       </option>
                     ))}
                   </select>
+                ) : String(data.field) === 'stage' ? (
+                  <select
+                    className="field"
+                    value={String(data.value || 'contacted')}
+                    onChange={e =>
+                      onChange({
+                        value: e.target.value,
+                        label: `If stage ${OP_LABELS[String(data.op || 'eq')]} ${e.target.value}`,
+                      })
+                    }
+                  >
+                    {PIPELINE_STAGES.map(s => (
+                      <option key={s} value={s}>
+                        {STAGE_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     className="field"
                     type={
-                      String(data.field) === 'score' || String(data.field) === 'confidence'
+                      ['score', 'confidence', 'days_in_stage'].includes(String(data.field))
                         ? 'number'
                         : 'text'
                     }
                     step={String(data.field) === 'confidence' ? 0.05 : 1}
                     value={String(data.value ?? '')}
                     onChange={e => {
-                      const value =
-                        String(data.field) === 'score' || String(data.field) === 'confidence'
-                          ? Number(e.target.value)
-                          : e.target.value
+                      const value = ['score', 'confidence', 'days_in_stage'].includes(
+                        String(data.field),
+                      )
+                        ? Number(e.target.value)
+                        : e.target.value
                       onChange({
                         value,
                         label: `If ${fieldMeta.label.toLowerCase()} ${OP_LABELS[String(data.op || 'eq')]} ${e.target.value}`,
@@ -315,8 +371,54 @@ export function NodeConfigModal({
 
           {kind === 'action_weekly_report' && (
             <p className="text-[12px] text-[var(--sq-text-secondary)]">
-              Queues this lead on the Weekly report tab for the 7-day pulse export.
+              Queues this lead on the Funnel report for the digest export.
             </p>
+          )}
+
+          {kind === 'action_enrich' && (
+            <p className="text-[12px] text-[var(--sq-text-secondary)]">
+              Ethically enriches the lead (demo for .example domains). Sets confidence for the next
+              condition and moves New → Enriched.
+            </p>
+          )}
+
+          {kind === 'action_move_stage' && (
+            <label className="sq-field">
+              <span>Move to stage</span>
+              <select
+                className="field"
+                value={String(data.stage || 'contacted')}
+                onChange={e => onChange({ stage: e.target.value, label: `Move to ${STAGE_LABELS[e.target.value as keyof typeof STAGE_LABELS] || e.target.value}` })}
+              >
+                {PIPELINE_STAGES.map(s => (
+                  <option key={s} value={s}>
+                    {STAGE_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {kind === 'action_notify' && (
+            <label className="sq-field">
+              <span>In-app message (never emailed)</span>
+              <input
+                className="field"
+                value={String(data.message || '')}
+                onChange={e => onChange({ message: e.target.value })}
+              />
+            </label>
+          )}
+
+          {kind === 'action_tag' && (
+            <label className="sq-field">
+              <span>Tag</span>
+              <input
+                className="field"
+                value={String(data.tag || '')}
+                onChange={e => onChange({ tag: e.target.value })}
+              />
+            </label>
           )}
 
           {String(kind).startsWith('action_') && (

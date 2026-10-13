@@ -14,14 +14,18 @@ export async function POST(req: Request) {
     }
     const snap = await enrichFromWebsite(lead, { cache: prismaEnrichmentCache })
     const merged = applyEnrichment(lead, snap)
-    const { score, reasons, whyNow } = scoreLead(merged, DEFAULT_ICP)
-    await prisma.reportEvent.create({
-      data: {
-        kind: 'enrich',
-        summary: `Enriched ${lead.company || snap.domain || 'lead'} (${snap.source})`,
-        payload: JSON.stringify({ domain: snap.domain, live: snap.live }),
-      },
-    })
+    const { score, reasons, whyNow, breakdown } = scoreLead(merged, DEFAULT_ICP)
+    try {
+      await prisma.reportEvent.create({
+        data: {
+          kind: 'enrich',
+          summary: `Enriched ${lead.company || snap.domain || 'lead'} (${snap.source})`,
+          payload: JSON.stringify({ domain: snap.domain, live: snap.live }),
+        },
+      })
+    } catch {
+      // DB optional for enrich response
+    }
     return NextResponse.json({
       enrichment: snap,
       lead: merged,
@@ -29,6 +33,7 @@ export async function POST(req: Request) {
       tier: tierOf(score),
       reasons,
       whyNow,
+      scoreBreakdown: breakdown,
     })
   } catch (e) {
     return NextResponse.json(

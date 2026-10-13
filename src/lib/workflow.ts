@@ -6,6 +6,10 @@
 import type { ScoredLead } from '@/lib/scoring'
 import { toCrmRows } from '@/lib/scoring'
 import { interpolate, leadPayload } from '@/lib/interpolate'
+import { demoEnrich, applyEnrichment } from '@/lib/enrichment'
+import { normalizeDomain } from '@/lib/scoring'
+import { applyStageChange, daysInStage, type PipelineStage } from '@/lib/pipeline'
+import { buildLeadProfile } from '@/lib/profile'
 
 export type NodeKind =
   | 'trigger'
@@ -14,9 +18,25 @@ export type NodeKind =
   | 'action_crm_push'
   | 'action_http'
   | 'action_weekly_report'
+  | 'action_enrich'
+  | 'action_move_stage'
+  | 'action_notify'
+  | 'action_tag'
 
-export type TriggerEvent = 'new_lead' | 'tier_changed' | 'field_updated'
-export type ConditionField = 'tier' | 'score' | 'industry' | 'state' | 'confidence'
+export type TriggerEvent =
+  | 'new_lead'
+  | 'tier_changed'
+  | 'field_updated'
+  | 'stage_changed'
+  | 'schedule'
+export type ConditionField =
+  | 'tier'
+  | 'score'
+  | 'industry'
+  | 'state'
+  | 'confidence'
+  | 'stage'
+  | 'days_in_stage'
 export type ConditionOp = 'eq' | 'neq' | 'gte' | 'lte' | 'contains'
 
 export type WorkflowNode = {
@@ -56,17 +76,23 @@ export type ExecContext = {
   lead: ScoredLead
   trigger: string
   prevTier?: string
+  prevStage?: string
   fieldConfidence?: number
   integrations?: IntegrationConfig
   allowNetwork?: boolean
+  now?: Date
 }
 
 /** Palette order — lean set for the demo story. */
 export const PALETTE_KINDS: NodeKind[] = [
   'trigger',
   'condition',
+  'action_enrich',
   'action_draft_email',
+  'action_move_stage',
   'action_crm_push',
+  'action_notify',
+  'action_tag',
   'action_http',
   'action_weekly_report',
 ]
@@ -116,6 +142,14 @@ export function defaultDataFor(kind: NodeKind): Record<string, string | number |
       }
     case 'action_weekly_report':
       return { label: 'Add to weekly report' }
+    case 'action_enrich':
+      return { label: 'Enrich from website' }
+    case 'action_move_stage':
+      return { label: 'Move stage', stage: 'contacted' }
+    case 'action_notify':
+      return { label: 'Notify', message: 'Workflow update for {{company}}' }
+    case 'action_tag':
+      return { label: 'Add tag', tag: 'autopilot' }
     default:
       return { label: 'Node' }
   }
@@ -276,7 +310,41 @@ function migrateNode(raw: {
           webhook: String(data.webhook || data.webhookUrl || data.url || ''),
         },
       }
-    // Drop unsupported legacy kinds (schedule, tag, notify, …).
+    case 'action_notify':
+    case 'notify':
+      return {
+        id: raw.id,
+        type: 'action_notify',
+        position,
+        data: {
+          ...defaultDataFor('action_notify'),
+          ...data,
+          label: String(data.label || 'Notify'),
+        },
+      }
+    case 'action_tag':
+    case 'tag':
+      return {
+        id: raw.id,
+        type: 'action_tag',
+        position,
+        data: {
+          ...defaultDataFor('action_tag'),
+          ...data,
+          label: String(data.label || 'Add tag'),
+        },
+      }
+    case 'trigger_schedule':
+      return {
+        id: raw.id,
+        type: 'trigger',
+        position,
+        data: {
+          ...defaultDataFor('trigger'),
+          event: 'schedule',
+          label: data.label || 'On schedule',
+        },
+      }
     default:
       return null
   }
@@ -340,9 +408,53 @@ export function isValidConnection(sourceKind: NodeKind, targetKind: NodeKind): b
     return targetGroup === 'condition' || targetGroup === 'action'
   }
   if (sourceGroup === 'action') {
-    return targetGroup === 'action'
+    // Allow action → condition so enrich can gate later steps on confidence.
+    return targetGroup === 'action' || targetGroup === 'condition'
   }
   return false
+}
+
+/** Blank canvas for a new automation. */
+export const EMPTY_GRAPH: WorkflowGraph = { nodes: [], edges: [] }
+
+export function countTriggers(
+  nodes: Array<{ type?: string; data?: { kind?: string } }>,
+): number {
+  return nodes.filter(node => {
+    const kind = node.type || node.data?.kind
+    return kind === 'trigger'
+  }).length
+}
+
+/**
+ * Canvas rules: one trigger and one automation path per canvas.
+ * Extra canvases are separate workflows in the list.
+ */
+export function canAddNodeKind(
+  kind: NodeKind,
+  nodes: Array<{ type?: string; data?: { kind?: string } }>,
+): { ok: true } | { ok: false; reason: string } {
+  if (kind === 'trigger' && countTriggers(nodes) >= 1) {
+    return {
+      ok: false,
+      reason: 'Only one trigger per canvas — create a new automation for another trigger',
+    }
+  }
+  return { ok: true }
+}
+
+/** Validate graph before persist: ≤1 trigger (one automation per canvas). */
+export function validateCanvasGraph(
+  graph: WorkflowGraph,
+): { ok: true } | { ok: false; reason: string } {
+  const triggers = graph.nodes.filter(node => node.type === 'trigger').length
+  if (triggers > 1) {
+    return {
+      ok: false,
+      reason: 'Only one trigger allowed per automation canvas',
+    }
+  }
+  return { ok: true }
 }
 
 export const DEFAULT_GRAPH: WorkflowGraph = sanitizeGraph({
@@ -374,10 +486,26 @@ function triggerMatches(node: WorkflowNode, ctx: ExecContext): boolean {
   const event = String(node.data.event || 'new_lead') as TriggerEvent
 
   if (event === 'new_lead') {
-    return ctx.trigger === 'new_lead'
+    return ctx.trigger === 'new_lead' || ctx.trigger === 'tier_changed'
   }
   if (event === 'field_updated') {
     return ctx.trigger === 'field_updated'
+  }
+  if (event === 'schedule') {
+    return ctx.trigger === 'schedule'
+  }
+  if (event === 'stage_changed') {
+    if (ctx.trigger !== 'stage_changed') {
+      return false
+    }
+    const wanted = String(node.data.stage || '').toLowerCase()
+    if (wanted && wanted !== String(ctx.lead.stage || '')) {
+      return false
+    }
+    if (ctx.prevStage != null && ctx.prevStage === ctx.lead.stage) {
+      return false
+    }
+    return true
   }
   if (event === 'tier_changed') {
     if (ctx.trigger !== 'tier_changed') {
@@ -421,6 +549,12 @@ function conditionPasses(node: WorkflowNode, ctx: ExecContext): boolean {
       left = String(lead.lead.state || '')
         .toLowerCase()
         .trim()
+      break
+    case 'stage':
+      left = String(lead.stage || 'new').toLowerCase()
+      break
+    case 'days_in_stage':
+      left = daysInStage(lead.stageChangedAt, ctx.now || new Date())
       break
     case 'confidence': {
       const confidence = ctx.fieldConfidence
@@ -639,6 +773,90 @@ async function runAction(node: WorkflowNode, ctx: ExecContext): Promise<NodeResu
           reportLine: `${lead.tier} · ${lead.lead.company || lead.id} · ${lead.score} · ${lead.whyNow || ''}`,
         },
       }
+    case 'action_enrich': {
+      const domain = normalizeDomain(lead.lead.website, lead.lead.email)
+      const snap = demoEnrich(lead.lead, domain)
+      const merged = applyEnrichment(lead.lead, snap)
+      const conf = Math.max(
+        snap.email.confidence,
+        snap.phone.confidence,
+        snap.yearFounded.confidence,
+        snap.services.confidence,
+      )
+      ctx.fieldConfidence = conf
+      const nextStage: PipelineStage =
+        lead.stage === 'new' || !lead.stage ? 'enriched' : (lead.stage as PipelineStage)
+      const profile = buildLeadProfile(merged, {
+        enrichment: snap,
+        whyNow: lead.whyNow,
+      })
+      Object.assign(ctx.lead, {
+        lead: merged,
+        stage: nextStage,
+        profile,
+      })
+      return {
+        nodeId: node.id,
+        type: node.type,
+        ok: true,
+        detail: `Enriched (${snap.source}) · confidence ${conf.toFixed(2)}`,
+        artifacts: {
+          enrichment: snap,
+          fieldConfidence: conf,
+          leadPatch: { lead: merged, stage: nextStage, profile },
+        },
+      }
+    }
+    case 'action_move_stage': {
+      const to = String(node.data.stage || 'contacted')
+      const result = applyStageChange(lead.stage, to, 'workflow', ctx.now || new Date())
+      if ('ok' in result && result.ok === false) {
+        return { nodeId: node.id, type: node.type, ok: false, detail: result.reason }
+      }
+      const ok = result as Exclude<typeof result, { ok: false }>
+      ctx.lead.stage = ok.stage
+      ctx.lead.stageChangedAt = ok.stageChangedAt
+      return {
+        nodeId: node.id,
+        type: node.type,
+        ok: true,
+        detail: ok.activity.summary,
+        artifacts: {
+          stage: ok.stage,
+          previousStage: ok.previousStage,
+          leadPatch: { stage: ok.stage, stageChangedAt: ok.stageChangedAt },
+          activity: ok.activity,
+        },
+      }
+    }
+    case 'action_notify': {
+      const message = interpolate(
+        String(node.data.message || 'Update for {{company}}'),
+        lead,
+      )
+      return {
+        nodeId: node.id,
+        type: node.type,
+        ok: true,
+        detail: `Notify: ${message}`,
+        artifacts: { notify: true, message, sent: false },
+      }
+    }
+    case 'action_tag': {
+      const tag = String(node.data.tag || 'autopilot').trim()
+      if (!tag) {
+        return { nodeId: node.id, type: node.type, ok: false, detail: 'Tag is empty' }
+      }
+      const tags = [...new Set([...(lead.tags || []), tag])]
+      ctx.lead.tags = tags
+      return {
+        nodeId: node.id,
+        type: node.type,
+        ok: true,
+        detail: `Tagged “${tag}”`,
+        artifacts: { tag, tags, leadPatch: { tags } },
+      }
+    }
     default:
       return { nodeId: node.id, type: node.type, ok: false, detail: 'Unknown action' }
   }
